@@ -1,0 +1,40 @@
+{
+  "name": "claude-chrome-mcp",
+  "version": "1.0.0",
+  "description": "MCP server adapter for Claude Browser Extension",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "claude-chrome-mcp": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "start:http": "node dist/cli.js --http",
+    "dev": "tsc --watch",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "browser",
+    "automation",
+    "chrome",
+    "extension"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "express": "^4.21.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
