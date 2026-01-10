@@ -108,7 +108,9 @@ export class ChromeMcpServer {
       // Convert native host response to MCP format
       return this.formatResponse(response);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error 
+        ? error.message 
+        : (typeof error === 'string' ? error : JSON.stringify(error));
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],
       };
@@ -123,7 +125,10 @@ export class ChromeMcpServer {
 
     // Handle error response
     if (response.error) {
-      content.push({ type: 'text' as const, text: `Error: ${response.error}` });
+      const errorMessage = typeof response.error === 'string' 
+        ? response.error 
+        : JSON.stringify(response.error);
+      content.push({ type: 'text' as const, text: `Error: ${errorMessage}` });
       return { content };
     }
 
