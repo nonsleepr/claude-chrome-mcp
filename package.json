@@ -7,6 +7,12 @@
   "bin": {
     "claude-chrome-mcp": "dist/cli.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
@@ -26,12 +32,16 @@
     "native-host",
     "native-messaging"
   ],
-  "author": "",
+  "author": "Anthropic",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anthropics/claude-chrome-mcp"
+    "url": "https://github.com/anthropics/claude-chrome-mcp.git"
   },
+  "bugs": {
+    "url": "https://github.com/anthropics/claude-chrome-mcp/issues"
+  },
+  "homepage": "https://github.com/anthropics/claude-chrome-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "express": "^4.21.0",

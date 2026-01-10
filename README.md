@@ -1,25 +1,26 @@
 # Claude Chrome MCP
 
-A unified native host and MCP HTTP server for browser automation through the Claude Chrome Extension.
+> Model Context Protocol server for browser automation via the Claude Chrome Extension
 
-## Overview
+A unified native host and MCP HTTP server that enables programmatic control of Chrome through the Claude Browser Extension. Connect any MCP-compatible client to automate browser interactions.
 
-This package provides a standalone native messaging host that bridges the Claude Chrome Extension with any MCP-compatible client. Unlike the previous approach that required the Claude CLI, this package is self-contained.
+## Features
 
+- **Zero Configuration**: Automatic native host installation and Chrome integration
+- **MCP Standard**: Full compliance with Model Context Protocol over HTTP/SSE
+- **14 Browser Tools**: Navigate, interact, read content, manage tabs, debug, and more
+- **Multi-Client**: Support multiple simultaneous MCP client connections
+- **Type-Safe**: Built with TypeScript for reliability
+
+## Architecture
+
+```mermaid
+graph LR
+    A[MCP Client] <-->|HTTP/SSE<br/>localhost:3456| B[claude-chrome-mcp<br/>Native Host + MCP Server]
+    B <-->|Chrome Native<br/>Messaging| C[Chrome<br/>Extension]
 ```
-┌──────────────┐                    ┌─────────────────────────────────────┐                    ┌──────────────┐
-│  MCP Client  │◄── HTTP/MCP ──────►│        claude-chrome-mcp            │◄── Chrome Native ──►│  Chrome      │
-│  (any)       │   localhost:3456   │  (native host + HTTP MCP server)    │    Messaging        │  Extension   │
-└──────────────┘                    └─────────────────────────────────────┘                    └──────────────┘
-```
 
-**Key Features:**
-- **Self-contained**: No dependency on `claude --chrome-native-host`
-- **Single process**: Native host and MCP server run together
-- **Easy setup**: One command to install (`--install`)
-- **Auto-start**: Chrome launches the native host automatically
-
-## Installation
+## Quick Start
 
 ```bash
 # Install globally
@@ -28,31 +29,14 @@ npm install -g claude-chrome-mcp
 # Register as Chrome native messaging host
 claude-chrome-mcp --install
 
-# Restart Chrome completely
+# Restart Chrome completely (required for native host registration)
 ```
 
-Or run directly with npx:
-
-```bash
-npx claude-chrome-mcp --install
-```
-
-## Prerequisites
-
-1. **Claude Browser Extension** installed in Chrome/Chromium
-   - Extension ID: `fcoeoabgfenejglbffodgkkbkcdhcgfn`
-2. **Node.js** 18.0.0 or later
-
-## How It Works
-
-1. When the Chrome extension connects, Chrome automatically launches `claude-chrome-mcp`
-2. The server starts listening for HTTP connections on port 3456 (or next available)
-3. MCP clients connect via HTTP to `http://localhost:3456/mcp`
-4. Tool requests flow: MCP Client → HTTP → Native Host → Chrome Extension → Browser
+That's it! Chrome will now automatically launch the MCP server when the extension connects.
 
 ## MCP Client Configuration
 
-Configure your MCP client to connect via HTTP:
+Configure your MCP client (Claude Desktop, Cline, Continue, etc.) to connect:
 
 ```json
 {
@@ -67,7 +51,20 @@ Configure your MCP client to connect via HTTP:
 }
 ```
 
-## CLI Usage
+Or run directly with npx (no installation needed):
+
+```bash
+npx claude-chrome-mcp --install
+```
+
+## Prerequisites
+
+- **Claude Browser Extension** installed in Chrome/Chromium
+  - Extension ID: `fcoeoabgfenejglbffodgkkbkcdhcgfn`
+  - [Install from Chrome Web Store](https://chrome.google.com/webstore)
+- **Node.js** 18.0.0 or later
+
+## CLI Reference
 
 ```bash
 # Install native host manifest
@@ -197,22 +194,23 @@ The server exposes 14 browser automation tools:
 
 ## Architecture
 
+## Architecture
+
 ### Message Flow
 
-```
-MCP Client                    claude-chrome-mcp                    Chrome Extension
-    │                               │                                     │
-    │  POST /mcp (tool call)        │                                     │
-    │──────────────────────────────►│                                     │
-    │                               │  tool_request (stdout)              │
-    │                               │────────────────────────────────────►│
-    │                               │                                     │
-    │                               │         [executes via CDP]          │
-    │                               │                                     │
-    │                               │  tool_response (stdin)              │
-    │                               │◄────────────────────────────────────│
-    │  HTTP Response                │                                     │
-    │◄──────────────────────────────│                                     │
+```mermaid
+sequenceDiagram
+    participant MC as MCP Client
+    participant CCP as claude-chrome-mcp
+    participant CE as Chrome Extension
+    participant B as Browser
+    
+    MC->>CCP: POST /mcp (tool call)
+    CCP->>CE: tool_request (native messaging)
+    CE->>B: Execute via CDP
+    B-->>CE: Result
+    CE-->>CCP: tool_response
+    CCP-->>MC: HTTP Response
 ```
 
 ### Wire Protocol
@@ -254,65 +252,33 @@ The Chrome extension requires permissions for each domain. When first interactin
 
 ### Custom Extension ID
 
-If using a custom/development version of the Chrome extension:
+If using a custom or development version of the Chrome extension:
 
 ```bash
 claude-chrome-mcp --install --extension-id YOUR_EXTENSION_ID
 ```
 
-## Development
+### Debugging
 
-```bash
-# Clone and install
-git clone https://github.com/anthropics/claude-chrome-mcp
-cd claude-chrome-mcp
-npm install
+Check native host logs (all logging goes to stderr):
+- Chrome intercepts and logs native host stderr to the extension console
+- Open `chrome://extensions` → Claude Extension → Details → Inspect views → Service Worker
+- Look for native host connection messages
 
-# Build
-npm run build
+For detailed troubleshooting, see [docs/ADVANCED_SETUP.md](./docs/ADVANCED_SETUP.md).
 
-# Install locally for testing
-npm run install-native-host
-```
+## Contributing
 
-### Project Structure
-
-```
-src/
-├── cli.ts              # CLI entry point
-├── native-host.ts      # Chrome native messaging protocol
-├── unified-server.ts   # Combined native host + HTTP MCP server
-├── tools.ts            # Tool definitions
-├── install.ts          # Native host manifest installation
-└── index.ts            # Package exports
-```
-
-## API Reference
-
-### CLI Options
-
-| Option | Description |
-|--------|-------------|
-| `--help, -h` | Show help message |
-| `--install` | Install native host manifest |
-| `--uninstall` | Remove native host manifest |
-| `--status` | Check installation status |
-| `--extension-id <id>` | Custom Chrome extension ID |
-| `--port <port>` | HTTP server port (default: 3456) |
-
-### Programmatic Usage
-
-```typescript
-import { UnifiedServer, installNativeHost } from 'claude-chrome-mcp';
-
-// Install native host
-await installNativeHost({ extensionId: 'custom-id' });
-
-// Or create server programmatically
-const server = new UnifiedServer({ port: 3456 });
-await server.start();
-```
+Contributions are welcome! Please see:
+- [AGENTS.md](./AGENTS.md) - Development guidelines and coding standards
+- [docs/](./docs/) - Technical documentation and specifications
 
 ## License
 
-MIT
+MIT License - see [LICENSE](./LICENSE) file for details.
+
+## Related Projects
+
+- [Model Context Protocol](https://modelcontextprotocol.io) - MCP specification
+- [Claude Desktop](https://claude.ai/download) - MCP-compatible client
+- [Claude Browser Extension](https://github.com/anthropics/claude-browser-extension) - Chrome extension for browser automation
