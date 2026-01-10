@@ -87,6 +87,24 @@ export class ChromeMcpServer {
   }
 
   /**
+   * Transform tool arguments to match native host expectations
+   */
+  private transformArgs(
+    name: string,
+    args: Record<string, unknown>
+  ): Record<string, unknown> {
+    const transformed = { ...args };
+
+    // For computer tool's "key" action, the extension expects the key in "text" param
+    if (name === 'computer' && args.action === 'key' && args.key && !args.text) {
+      transformed.text = args.key;
+      delete transformed.key;
+    }
+
+    return transformed;
+  }
+
+  /**
    * Execute a tool via the native host
    */
   private async executeTool(
@@ -99,10 +117,13 @@ export class ChromeMcpServer {
         throw new Error('Not connected to native host. Call connect() first.');
       }
 
+      // Transform args to match native host expectations
+      const transformedArgs = this.transformArgs(name, args);
+
       // Execute tool via native host
       const response = await this.nativeClient.executeTool({
         tool: name,
-        args,
+        args: transformedArgs,
       });
 
       // Convert native host response to MCP format
