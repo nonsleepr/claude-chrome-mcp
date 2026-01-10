@@ -17,7 +17,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
-    "prepare": "test -f node_modules/.bin/tsc && node_modules/.bin/tsc || true"
+    "prepare": "node scripts/build.js"
   },
   "keywords": [
     "mcp",
