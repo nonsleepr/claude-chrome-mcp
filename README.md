@@ -8,7 +8,7 @@ A unified native host and MCP HTTP server that enables programmatic control of C
 
 - **Works with Claude.com Extension**: Integrates seamlessly with the official [Claude Chrome Extension](https://claude.com/chrome)
 - **Zero Configuration**: Automatic native host installation and Chrome integration
-- **MCP Standard**: Full compliance with Model Context Protocol over HTTP/SSE
+- **MCP Standard**: Full compliance with Model Context Protocol over HTTP
 - **14 Browser Tools**: Navigate, interact, read content, manage tabs, debug, and more
 - **Multi-Client**: Support multiple simultaneous MCP client connections
 - **Type-Safe**: Built with TypeScript for reliability
@@ -17,7 +17,7 @@ A unified native host and MCP HTTP server that enables programmatic control of C
 
 ```mermaid
 graph LR
-    A[MCP Client] <-->|HTTP/SSE<br/>localhost:3456| B[claude-chrome-mcp<br/>Native Host + MCP Server]
+    A[MCP Client] <-->|HTTP<br/>localhost:3456| B[claude-chrome-mcp<br/>Native Host + MCP Server]
     B <-->|Chrome Native<br/>Messaging| C[Chrome<br/>Extension]
 ```
 
@@ -50,7 +50,7 @@ Configure your MCP client (Claude Desktop, Cline, Continue, etc.) to connect:
   "mcpServers": {
     "chrome-browser": {
       "transport": {
-        "type": "sse",
+        "type": "http",
         "url": "http://localhost:3456/mcp"
       }
     }
