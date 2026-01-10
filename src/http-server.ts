@@ -27,6 +27,25 @@ interface Session {
 
 const sessions = new Map<string, Session>();
 
+// Shared global native host connection
+let sharedServer: ChromeMcpServer | null = null;
+
+/**
+ * Get or create the shared ChromeMcpServer instance
+ */
+async function getSharedServer(options: HttpServerOptions): Promise<ChromeMcpServer> {
+  if (!sharedServer) {
+    console.error('[HTTP] Initializing shared native host connection...');
+    sharedServer = new ChromeMcpServer({
+      socketPath: options.socketPath,
+      spawnNativeHost: options.spawnNativeHost,
+    });
+    await sharedServer.connect();
+    console.error('[HTTP] Shared native host connection established');
+  }
+  return sharedServer;
+}
+
 /**
  * Start the HTTP/SSE MCP server
  */
@@ -34,6 +53,9 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   const app = express();
   const host = options.host || '127.0.0.1';
   const port = options.port;
+  
+  // Initialize shared server at startup
+  await getSharedServer(options);
 
   // Middleware
   app.use(express.json());
@@ -86,25 +108,19 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Mcp-Session-Id', sessionId);
 
-    // Create server and transport for this session
-    const server = new ChromeMcpServer({
-      socketPath: options.socketPath,
-      spawnNativeHost: options.spawnNativeHost,
-    });
-
     try {
-      // Connect to native host
-      await server.connect();
+      // Use the shared server instance instead of creating a new one
+      const server = await getSharedServer(options);
 
       // Create SSE transport
       // The SSE transport needs the response object and message endpoint
       const transport = new SSEServerTransport(`/message?sessionId=${sessionId}`, res);
 
-      // Store session
+      // Store session (but don't own the server - it's shared)
       const session: Session = {
         id: sessionId,
         transport,
-        server,
+        server, // Reference to shared server
         response: res,
         createdAt: new Date(),
       };
@@ -116,7 +132,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
       // Handle client disconnect
       req.on('close', () => {
         console.error(`[HTTP] SSE connection closed: ${sessionId}`);
-        cleanupSession(sessionId);
+        cleanupSession(sessionId, false); // Don't disconnect the shared server
       });
 
       // Send keep-alive pings
@@ -131,7 +147,6 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     } catch (error) {
       console.error(`[HTTP] Failed to establish SSE connection:`, error);
       sessions.delete(sessionId);
-      server.disconnect();
       
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to connect to native host' });
@@ -226,11 +241,14 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
 /**
  * Cleanup a specific session
  */
-function cleanupSession(sessionId: string): void {
+function cleanupSession(sessionId: string, disconnectServer: boolean = true): void {
   const session = sessions.get(sessionId);
   if (session) {
     console.error(`[HTTP] Cleaning up session: ${sessionId}`);
-    session.server.disconnect();
+    // Only disconnect if this session owns the server (not shared)
+    if (disconnectServer && session.server !== sharedServer) {
+      session.server.disconnect();
+    }
     if (!session.response.writableEnded) {
       session.response.end();
     }
