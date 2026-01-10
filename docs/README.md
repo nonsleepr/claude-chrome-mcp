@@ -36,11 +36,13 @@ Internal protocol specification for the native host process.
 
 ### [HTTP/SSE MCP Server Specification](./HTTP_SSE_MCP_SERVER_SPEC.md)
 
-Design specification for the HTTP/SSE-based MCP transport implementation.
+Design specification for an alternative HTTP/SSE-based MCP transport implementation (not currently used).
+
+> **Note**: The current implementation uses HTTP transport. This document describes a proposed SSE-based design.
 
 **Topics covered:**
 - HTTP API endpoints
-- SSE event specification
+- SSE event specification (proposed)
 - MCP protocol mapping
 - Implementation details
 
@@ -49,7 +51,7 @@ Design specification for the HTTP/SSE-based MCP transport implementation.
 ### Architecture
 
 ```
-MCP Client → HTTP/SSE → Native Host → Chrome Extension → Browser
+MCP Client → HTTP → Native Host → Chrome Extension → Browser
             (port 3456)   (stdio)         (CDP)
 ```
 
