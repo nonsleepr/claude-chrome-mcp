@@ -48,7 +48,7 @@ Configure your MCP client (Claude Desktop, Cline, Continue, etc.) to connect:
 ```json
 {
   "mcpServers": {
-    "chrome-browser": {
+    "claude_chrome": {
       "transport": {
         "type": "http",
         "url": "http://localhost:3456/mcp"

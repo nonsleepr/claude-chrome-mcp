@@ -183,9 +183,9 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
   log('MCP client configuration example:');
   log(JSON.stringify({
     mcpServers: {
-      'chrome-browser': {
+      'claude_chrome': {
         transport: {
-          type: 'sse',
+          type: 'http',
           url: 'http://localhost:3456/mcp',
         },
       },

@@ -122,9 +122,9 @@ INSTALLATION
   4. Configure your MCP client:
      {
        "mcpServers": {
-         "chrome-browser": {
+         "claude_chrome": {
            "transport": {
-             "type": "sse",
+             "type": "http",
              "url": "http://localhost:3456/mcp"
            }
          }
