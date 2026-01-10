@@ -78,7 +78,7 @@ Actions:
     key: z.string().optional()
       .describe('Key or key combination to press (for "key" action)'),
     duration: z.number().optional()
-      .describe('Duration in milliseconds (for "wait" action)'),
+      .describe('Duration in seconds (for "wait" action, max 30)'),
     startCoordinate: z.array(z.number()).length(2).optional()
       .describe('Start coordinates for drag action'),
     endCoordinate: z.array(z.number()).length(2).optional()
@@ -138,11 +138,8 @@ export const getPageTextTool: ToolDefinition = {
 
 export const tabsContextTool: ToolDefinition = {
   name: 'tabs_context',
-  description: 'Get information about tabs in the browser tab group. Returns tab IDs, titles, URLs, and group information.',
-  inputSchema: z.object({
-    createIfEmpty: z.boolean().optional()
-      .describe('Creates a new tab group if none exists (internal use - handled automatically)'),
-  }),
+  description: 'Get information about tabs in the browser tab group. Returns tab IDs, titles, URLs, and group information. Tab group is automatically created if it doesn\'t exist.',
+  inputSchema: z.object({}),
 };
 
 export const tabsCreateTool: ToolDefinition = {

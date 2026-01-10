@@ -277,8 +277,8 @@ The server exposes 14 browser automation tools:
 ### Tab Management
 | Tool | Description |
 |------|-------------|
-| `tabs_context` | List tabs in browser tab group |
-| `tabs_create` | Create new tab in browser tab group |
+| `tabs_context` | List tabs in browser tab group (auto-creates group if needed) |
+| `tabs_create` | Create new tab with optional URL navigation |
 | `resize_window` | Resize browser window |
 
 ### Debugging

@@ -134,13 +134,13 @@ MCP Client → claude-chrome-mcp → Native Host Socket → Chrome Extension →
 | Tool | Description |
 |------|-------------|
 | `navigate` | Navigate to URLs, back/forward |
-| `computer` | Click, type, scroll, screenshot, keyboard |
+| `computer` | Click, type, scroll, screenshot, keyboard (wait action uses seconds, max 30) |
 | `form_input` | Fill text inputs, select dropdowns |
 | `find` | Search for elements by text (use `query` param) |
 | `read_page` | Get DOM with element references |
 | `get_page_text` | Extract visible text content |
-| `tabs_context` | List tabs in browser tab group |
-| `tabs_create` | Create new tab in browser tab group |
+| `tabs_context` | List tabs in browser tab group (auto-creates if needed) |
+| `tabs_create` | Create new tab with optional URL (navigates automatically if URL provided) |
 | `resize_window` | Resize browser window |
 | `read_console_messages` | Read browser console |
 | `read_network_requests` | Read network activity |

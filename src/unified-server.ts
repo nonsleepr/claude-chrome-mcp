@@ -521,6 +521,18 @@ export class UnifiedServer {
   }
 
   /**
+   * Translate MCP tool names to Chrome extension tool names
+   */
+  private translateToolName(tool: string): string {
+    // MCP exposes tabs_context/tabs_create but Chrome extension expects tabs_context_mcp/tabs_create_mcp
+    const nameMap: Record<string, string> = {
+      'tabs_context': 'tabs_context_mcp',
+      'tabs_create': 'tabs_create_mcp',
+    };
+    return nameMap[tool] || tool;
+  }
+
+  /**
    * Execute a tool with a callback to receive the raw result
    */
   private async executeToolDirectWithCallback(
@@ -530,6 +542,7 @@ export class UnifiedServer {
   ): Promise<ToolResult> {
     const id = String(++this.requestId);
     const transformedArgs = this.transformArgs(tool, args);
+    const chromeToolName = this.translateToolName(tool);
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -546,7 +559,7 @@ export class UnifiedServer {
         rawResultCallback,
       });
 
-      this.nativeHost.sendToolRequest(tool, transformedArgs);
+      this.nativeHost.sendToolRequest(chromeToolName, transformedArgs);
     });
   }
 
@@ -559,6 +572,7 @@ export class UnifiedServer {
   ): Promise<ToolResult> {
     const id = String(++this.requestId);
     const transformedArgs = this.transformArgs(tool, args);
+    const chromeToolName = this.translateToolName(tool);
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -569,7 +583,7 @@ export class UnifiedServer {
       }, TOOL_TIMEOUT_MS);
 
       this.pendingToolRequests.set(id, { resolve, reject, timeout });
-      this.nativeHost.sendToolRequest(tool, transformedArgs);
+      this.nativeHost.sendToolRequest(chromeToolName, transformedArgs);
     });
   }
 
@@ -597,10 +611,79 @@ export class UnifiedServer {
       if (!args.tabGroupId && this.mcpTabGroupId !== null) {
         args = { ...args, tabGroupId: this.mcpTabGroupId };
       }
+    } else {
+      // For tabs_context, always inject createIfEmpty: true
+      args = { ...args, createIfEmpty: true };
+    }
+
+    // Special handling for tabs_create with URL
+    if (tool === 'tabs_create' && args.url) {
+      return this.handleTabsCreateWithUrl(args.url as string, args);
     }
 
     // Execute the tool
     return this.executeToolDirect(tool, args);
+  }
+
+  /**
+   * Handle tabs_create when URL is provided
+   * Creates the tab and immediately navigates to the URL
+   */
+  private async handleTabsCreateWithUrl(
+    url: string,
+    args: Record<string, unknown>
+  ): Promise<ToolResult> {
+    try {
+      // Step 1: Create the tab (without URL, since extension doesn't support it)
+      const createArgs = { ...args };
+      delete createArgs.url;
+      
+      const createResult = await this.executeToolDirect('tabs_create', createArgs);
+      
+      // Step 2: Extract tab ID from the result
+      // The extension returns "Created new tab. Tab ID: 123" in the content
+      const contentText = createResult.content?.[0]?.type === 'text' 
+        ? (createResult.content[0] as TextContent).text 
+        : '';
+      
+      const tabIdMatch = contentText.match(/Tab ID:\s*(\d+)/);
+      if (!tabIdMatch) {
+        // If we can't extract tab ID, return the create result as-is
+        console.error('[UnifiedServer] Failed to extract tab ID from:', contentText);
+        return createResult;
+      }
+      
+      const tabId = parseInt(tabIdMatch[1], 10);
+      console.error(`[UnifiedServer] Created tab ${tabId}, now navigating to ${url}`);
+      
+      // Step 3: Navigate to the URL
+      const navResult = await this.executeToolDirect('navigate', {
+        url,  // navigate tool uses 'url' parameter
+        tabId,
+      });
+      
+      console.error(`[UnifiedServer] Navigation result:`, navResult);
+      
+      // Step 4: Return combined result
+      return {
+        content: [
+          { 
+            type: 'text', 
+            text: `Created new tab (ID: ${tabId}) and navigated to ${url}` 
+          }
+        ],
+      };
+    } catch (error) {
+      console.error('[UnifiedServer] Error in handleTabsCreateWithUrl:', error);
+      return {
+        content: [
+          { 
+            type: 'text', 
+            text: `Error creating tab with URL: ${error instanceof Error ? error.message : String(error)}` 
+          }
+        ],
+      };
+    }
   }
 
   /**
