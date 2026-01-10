@@ -43,16 +43,41 @@ That's it! Chrome will now automatically launch the MCP server when the extensio
 
 ### 3. Configure Your MCP Client
 
-Configure your MCP client (Claude Desktop, Cline, Continue, etc.) to connect:
+The native host automatically starts an HTTP server on port 3456. Configure your MCP client to connect:
+
+#### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "claude_chrome": {
-      "transport": {
-        "type": "http",
-        "url": "http://localhost:3456/mcp"
-      }
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"]
+    }
+  }
+}
+```
+
+#### Claude Code CLI
+
+```bash
+claude mcp add --transport http claude_chrome http://localhost:3456/mcp
+```
+
+#### Other MCP Clients (Cline, Continue, etc.)
+
+Refer to your client's documentation. Most support HTTP transport with this configuration:
+
+```json
+{
+  "mcpServers": {
+    "claude_chrome": {
+      "type": "http",
+      "url": "http://localhost:3456/mcp"
     }
   }
 }
