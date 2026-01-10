@@ -27,6 +27,8 @@ interface CliOptions {
   help: boolean;
   extensionId?: string;
   port?: number;
+  authToken?: string;
+  corsOrigins?: string[];
 }
 
 function parseArgs(): CliOptions {
@@ -78,6 +80,24 @@ function parseArgs(): CliOptions {
         i++;
         break;
 
+      case '--auth-token':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --auth-token requires a value');
+          process.exit(1);
+        }
+        options.authToken = nextArg;
+        i++;
+        break;
+
+      case '--cors-origins':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --cors-origins requires a value (comma-separated list)');
+          process.exit(1);
+        }
+        options.corsOrigins = nextArg.split(',').map((origin) => origin.trim());
+        i++;
+        break;
+
       default:
         if (arg.startsWith('-')) {
           console.error(`Unknown option: ${arg}`);
@@ -107,14 +127,16 @@ OPTIONS
   --uninstall             Remove native host manifest
   --status                Check installation status
   --extension-id <id>     Custom Chrome extension ID (default: official Claude extension)
-  --port <port>           HTTP server port (default: 3456, fallback to random if busy)
+  --port <port>           HTTP server port (default: 3456)
+  --auth-token <token>    Require Bearer token authentication (default: none)
+  --cors-origins <list>   Comma-separated list of allowed CORS origins (default: localhost only)
 
 INSTALLATION
   1. Install the package globally:
      npm install -g claude-chrome-mcp
 
-  2. Register as native host:
-     claude-chrome-mcp --install
+  2. Register as native host (with security settings):
+     claude-chrome-mcp --install --auth-token "your-secret-token" --port 3456
 
   3. Restart Chrome completely
 
@@ -124,16 +146,40 @@ INSTALLATION
          "claude_chrome": {
            "transport": {
              "type": "http",
-             "url": "http://localhost:3456/mcp"
+             "url": "http://localhost:3456/mcp",
+             "headers": {
+               "Authorization": "Bearer your-secret-token"
+             }
            }
          }
        }
      }
 
+SECURITY
+  ⚠️  IMPORTANT: Security settings are configured at INSTALL time, not runtime.
+  
+  Authentication:
+    Use --auth-token during installation to require Bearer token authentication.
+    The token is stored in the wrapper script as an environment variable (not in process args).
+    
+    Example:
+      claude-chrome-mcp --install --auth-token "$(openssl rand -hex 32)"
+
+  CORS:
+    By default, only localhost origins are allowed. To allow specific origins:
+      claude-chrome-mcp --install --cors-origins "https://app.example.com,https://api.example.com"
+
+  Port:
+    Specify a custom port during installation:
+      claude-chrome-mcp --install --port 8080
+
+  To update settings:
+    Simply reinstall with new parameters - installation will overwrite existing configuration.
+
 HOW IT WORKS
   When Chrome Extension connects to the native host:
   1. Chrome launches this process via native messaging
-  2. HTTP server starts on port 3456 (or next available)
+  2. HTTP server starts on configured port (default 3456)
   3. MCP clients can connect via HTTP to control the browser
   4. Tool requests are routed: MCP Client → HTTP → Native Host → Chrome Extension
 
@@ -154,11 +200,20 @@ AVAILABLE TOOLS
   - javascript_tool   Execute JS in page
 
 EXAMPLES
-  # Install native host
+  # Install with default settings (INSECURE - no auth)
   claude-chrome-mcp --install
 
+  # Install with authentication (RECOMMENDED)
+  claude-chrome-mcp --install --auth-token "my-secret-token-12345"
+
+  # Install with custom port and CORS origins
+  claude-chrome-mcp --install \\
+    --port 8080 \\
+    --auth-token "secret" \\
+    --cors-origins "https://app.example.com,https://api.example.com"
+
   # Install with custom extension ID
-  claude-chrome-mcp --install --extension-id abcdefghijklmnop
+  claude-chrome-mcp --install --extension-id abcdefghijklmnop --auth-token "secret"
 
   # Check installation status
   claude-chrome-mcp --status
@@ -200,9 +255,39 @@ async function runServer(options: CliOptions): Promise<void> {
   // Running as native host (launched by Chrome)
   // All logging must go to stderr (stdout is for Chrome protocol)
   
+  // Check for port in environment if not provided via CLI
+  let port = options.port;
+  if (!port && process.env.MCP_PORT) {
+    port = parseInt(process.env.MCP_PORT, 10);
+  }
+  
+  // Check for auth token in environment if not provided via CLI
+  const authToken = options.authToken || process.env.MCP_AUTH_TOKEN;
+  
+  // Check for CORS origins in environment if not provided via CLI
+  let corsOrigins = options.corsOrigins;
+  if (!corsOrigins && process.env.MCP_CORS_ORIGINS) {
+    corsOrigins = process.env.MCP_CORS_ORIGINS.split(',').map((origin) => origin.trim());
+  }
+
   const server = new UnifiedServer({
-    port: options.port,
+    port,
+    authToken,
+    corsOrigins,
   });
+
+  // Log security configuration to stderr
+  if (authToken) {
+    console.error('[CLI] Bearer token authentication enabled');
+  } else {
+    console.error('[CLI] Warning: No authentication configured. Use --auth-token for security.');
+  }
+
+  if (corsOrigins && corsOrigins.length > 0) {
+    console.error(`[CLI] CORS origins: ${corsOrigins.join(', ')}`);
+  } else {
+    console.error('[CLI] CORS: localhost only (default)');
+  }
 
   // Handle shutdown signals
   const shutdown = () => {
@@ -238,6 +323,9 @@ async function main(): Promise<void> {
   if (options.install) {
     await installNativeHost({
       extensionId: options.extensionId,
+      port: options.port,
+      authToken: options.authToken,
+      corsOrigins: options.corsOrigins,
       verbose: true,
     });
     return;

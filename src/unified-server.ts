@@ -28,6 +28,8 @@ const TOOL_TIMEOUT_MS = 60000; // 60 seconds
 export interface UnifiedServerOptions {
   port?: number;
   host?: string;
+  authToken?: string;
+  corsOrigins?: string[];
 }
 
 interface PendingToolRequest {
@@ -228,30 +230,76 @@ export class UnifiedServer {
     // Parse JSON bodies
     this.app.use(express.json());
 
-    // Security: Validate Origin header to prevent DNS rebinding
+    // Authentication middleware (if authToken is configured)
+    if (this.options.authToken) {
+      this.app.use((req: Request, res: Response, next: NextFunction) => {
+        // Skip auth for OPTIONS preflight requests
+        if (req.method === 'OPTIONS') {
+          next();
+          return;
+        }
+
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+        if (token !== this.options.authToken) {
+          console.error(`[HTTP] Authentication failed from ${req.ip}`);
+          res.status(401)
+            .header('WWW-Authenticate', 'Bearer realm="MCP"')
+            .json({
+              jsonrpc: '2.0',
+              error: {
+                code: -32001,
+                message: 'Authentication required',
+              },
+              id: null,
+            });
+          return;
+        }
+
+        next();
+      });
+    }
+
+    // CORS middleware (configurable origins)
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       const origin = req.headers.origin;
-      if (origin) {
+      const corsOrigins = this.options.corsOrigins || [];
+
+      // Determine allowed origin
+      let allowedOrigin = '*';
+
+      if (corsOrigins.length > 0) {
+        // Check if request origin is in allowed list
+        if (origin && corsOrigins.includes(origin)) {
+          allowedOrigin = origin;
+        } else if (origin) {
+          // Origin not allowed - still set headers but will fail browser CORS check
+          console.error(`[HTTP] CORS rejected origin: ${origin}`);
+          allowedOrigin = 'null';
+        }
+      } else if (origin) {
+        // No specific origins configured - validate it's localhost for security
         try {
           const url = new URL(origin);
-          if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
-            console.error(`[HTTP] Rejected request from origin: ${origin}`);
-            res.status(403).json({ error: 'Forbidden: Invalid origin' });
-            return;
+          if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+            allowedOrigin = origin;
+          } else {
+            console.error(`[HTTP] Rejected non-localhost origin: ${origin}`);
+            allowedOrigin = 'null';
           }
         } catch {
-          // Invalid URL, allow it (might be a non-browser client)
+          // Invalid URL format - deny
+          allowedOrigin = 'null';
         }
       }
-      next();
-    });
 
-    // CORS headers for local development
-    this.app.use((req: Request, res: Response, next: NextFunction) => {
-      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Origin', allowedOrigin);
       res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id');
-      res.header('Access-Control-Expose-Headers', 'Mcp-Session-Id');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, Mcp-Session-Id');
+      res.header('Access-Control-Expose-Headers', 'Mcp-Session-Id, WWW-Authenticate');
+      res.header('Access-Control-Allow-Credentials', 'true');
+
       if (req.method === 'OPTIONS') {
         res.sendStatus(200);
         return;

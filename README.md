@@ -27,6 +27,8 @@ graph LR
 
 Visit [claude.com/chrome](https://claude.com/chrome) to install the official Claude Browser Extension.
 
+> **Note**: Simply having the extension installed is sufficient - you don't need to be logged in to Claude.com for the MCP server to work. The extension will automatically connect to the native host.
+
 ### 2. Install and Configure MCP Server
 
 ```bash
@@ -115,6 +117,12 @@ npx claude-chrome-mcp --install
 # Install native host manifest
 claude-chrome-mcp --install
 
+# Install with security settings (RECOMMENDED)
+claude-chrome-mcp --install \
+  --port 3456 \
+  --auth-token "your-secret-token" \
+  --cors-origins "https://app.example.com"
+
 # Install with custom extension ID
 claude-chrome-mcp --install --extension-id YOUR_EXTENSION_ID
 
@@ -126,6 +134,122 @@ claude-chrome-mcp --uninstall
 
 # Show help
 claude-chrome-mcp --help
+```
+
+## Security
+
+⚠️ **IMPORTANT**: Security settings are configured at **INSTALL TIME**, not at runtime. When Chrome launches the native host, it uses the configuration stored in the wrapper script.
+
+### Quick Start: Secure Installation
+
+```bash
+# Generate a secure random token
+TOKEN=$(openssl rand -hex 32)
+
+# Install with authentication
+claude-chrome-mcp --install --auth-token "$TOKEN"
+
+# Configure your MCP client with the token
+{
+  "mcpServers": {
+    "claude_chrome": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"],
+      "env": {
+        "MCP_REMOTE_HEADERS": "{\"Authorization\": \"Bearer YOUR_TOKEN_HERE\"}"
+      }
+    }
+  }
+}
+```
+
+### Bearer Token Authentication
+
+By default, the MCP server has **no authentication** - anyone with access to localhost can control your browser. For security, enable Bearer token authentication during installation:
+
+```bash
+# Install with authentication
+claude-chrome-mcp --install --auth-token "my-secret-token-12345"
+```
+
+The auth token is stored as an environment variable in the wrapper script (not visible in `ps aux`). Your MCP client must include the token in requests:
+
+```json
+{
+  "headers": {
+    "Authorization": "Bearer my-secret-token-12345"
+  }
+}
+```
+
+**Security tokens are stored at:**
+- Linux/macOS: `~/.local/share/claude-chrome-mcp/claude-chrome-mcp-native-host`
+- Windows: `%USERPROFILE%\.claude-chrome-mcp\claude-chrome-mcp-native-host.bat`
+
+### CORS Configuration
+
+By default, only `localhost` origins are allowed. To allow specific external origins:
+
+```bash
+claude-chrome-mcp --install \
+  --auth-token "token" \
+  --cors-origins "https://app.example.com,https://api.example.com"
+```
+
+### Port Configuration
+
+The default port is 3456. To use a different port:
+
+```bash
+claude-chrome-mcp --install --port 8080 --auth-token "token"
+```
+
+**Note**: After changing the port, update your MCP client configuration to use the new URL.
+
+### Updating Security Settings
+
+To change any security settings, simply reinstall:
+
+```bash
+# Update auth token
+claude-chrome-mcp --install --auth-token "new-token"
+
+# Change port
+claude-chrome-mcp --install --port 8080 --auth-token "token"
+
+# After reinstalling, restart Chrome completely
+```
+
+### Security Best Practices
+
+✅ **Do:**
+- Always use `--auth-token` for production/shared environments
+- Generate strong random tokens: `openssl rand -hex 32`
+- Use HTTPS origins in `--cors-origins` for production
+- Restart Chrome after changing security settings
+- Store tokens securely (they're in the wrapper script)
+
+❌ **Don't:**
+- Run without authentication on shared/public networks
+- Use weak or predictable tokens
+- Share tokens between different users or environments
+- Commit tokens to source control
+
+### Security Architecture
+
+```
+Chrome Extension connects
+    ↓
+Launches wrapper script (~/.local/share/claude-chrome-mcp/...)
+    ↓
+Wrapper sets environment variables:
+  - MCP_PORT=3456
+  - MCP_AUTH_TOKEN="secret"
+  - MCP_CORS_ORIGINS="https://app.example.com"
+    ↓
+Starts native host with security enabled
+    ↓
+MCP clients must include Authorization header
 ```
 
 ## Available Tools

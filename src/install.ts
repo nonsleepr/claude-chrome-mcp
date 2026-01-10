@@ -15,6 +15,9 @@ const MANIFEST_NAME = 'com.anthropic.claude_code_browser_extension';
 export interface InstallOptions {
   extensionId?: string;
   verbose?: boolean;
+  port?: number;
+  authToken?: string;
+  corsOrigins?: string[];
 }
 
 /**
@@ -37,19 +40,43 @@ function getExecutablePath(): string {
 /**
  * Create a wrapper script for the native host
  */
-function createWrapperScript(targetDir: string, scriptPath: string): string {
+function createWrapperScript(targetDir: string, scriptPath: string, options: InstallOptions): string {
   const wrapperPath = path.join(targetDir, 'claude-chrome-mcp-native-host');
   
   if (process.platform === 'win32') {
     // Windows batch file
     const batchPath = wrapperPath + '.bat';
-    const content = `@echo off\r\n"${process.execPath}" "${scriptPath}" %*\r\n`;
+    const envVars: string[] = [];
+    
+    if (options.port) {
+      envVars.push(`set MCP_PORT=${options.port}`);
+    }
+    if (options.authToken) {
+      envVars.push(`set MCP_AUTH_TOKEN=${options.authToken}`);
+    }
+    if (options.corsOrigins && options.corsOrigins.length > 0) {
+      envVars.push(`set MCP_CORS_ORIGINS=${options.corsOrigins.join(',')}`);
+    }
+    
+    const content = `@echo off\r\n${envVars.join('\r\n')}${envVars.length > 0 ? '\r\n' : ''}"${process.execPath}" "${scriptPath}" %*\r\n`;
     fs.writeFileSync(batchPath, content);
     return batchPath;
   } else {
     // Unix shell script
     const nodeExec = process.execPath;
-    const content = `#!/usr/bin/env bash\nexec "${nodeExec}" "${scriptPath}" "$@"\n`;
+    const envVars: string[] = [];
+    
+    if (options.port) {
+      envVars.push(`export MCP_PORT=${options.port}`);
+    }
+    if (options.authToken) {
+      envVars.push(`export MCP_AUTH_TOKEN="${options.authToken}"`);
+    }
+    if (options.corsOrigins && options.corsOrigins.length > 0) {
+      envVars.push(`export MCP_CORS_ORIGINS="${options.corsOrigins.join(',')}"`);
+    }
+    
+    const content = `#!/usr/bin/env bash\n${envVars.join('\n')}${envVars.length > 0 ? '\n' : ''}exec "${nodeExec}" "${scriptPath}" "$@"\n`;
     fs.writeFileSync(wrapperPath, content, { mode: 0o755 });
     return wrapperPath;
   }
@@ -114,6 +141,29 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
   log('Installing Claude Chrome MCP native host...');
   log(`Extension ID: ${extensionId}`);
 
+  // Security configuration summary
+  if (options.authToken) {
+    log('Security: Bearer token authentication enabled');
+  } else {
+    log('');
+    log('⚠️  WARNING: No authentication configured!');
+    log('   Anyone with access to localhost can control your browser.');
+    log('   Use --auth-token to enable authentication.');
+    log('');
+  }
+  
+  if (options.corsOrigins && options.corsOrigins.length > 0) {
+    log(`CORS: ${options.corsOrigins.join(', ')}`);
+  } else {
+    log('CORS: localhost only (default)');
+  }
+  
+  if (options.port) {
+    log(`Port: ${options.port}`);
+  } else {
+    log('Port: 3456 (default)');
+  }
+
   // Create wrapper directory
   const wrapperDir = getWrapperDir();
   if (!fs.existsSync(wrapperDir)) {
@@ -123,7 +173,7 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
 
   // Create wrapper script
   const scriptPath = getExecutablePath();
-  const wrapperPath = createWrapperScript(wrapperDir, scriptPath);
+  const wrapperPath = createWrapperScript(wrapperDir, scriptPath, options);
   log(`Created wrapper script: ${wrapperPath}`);
 
   // Create manifest
@@ -178,19 +228,52 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
   log('Next steps:');
   log('1. Restart Chrome/Chromium completely (quit and reopen)');
   log('2. The native host will start automatically when the extension connects');
-  log('3. Configure your MCP client to use: http://localhost:3456/mcp');
+  
+  const port = options.port || 3456;
+  const mcpUrl = `http://localhost:${port}/mcp`;
+  log(`3. Configure your MCP client to use: ${mcpUrl}`);
+  
+  if (options.authToken) {
+    log('');
+    log('⚠️  IMPORTANT: Your MCP client must include the bearer token:');
+    log('   Add this to your MCP client configuration:');
+    log('   "headers": { "Authorization": "Bearer <your-token>" }');
+  }
+  
   log('');
   log('MCP client configuration example:');
-  log(JSON.stringify({
+  
+  const exampleConfig: Record<string, unknown> = {
     mcpServers: {
       'claude_chrome': {
         transport: {
           type: 'http',
-          url: 'http://localhost:3456/mcp',
+          url: mcpUrl,
         },
       },
     },
-  }, null, 2));
+  };
+  
+  if (options.authToken) {
+    (exampleConfig.mcpServers as Record<string, unknown>)['claude_chrome'] = {
+      transport: {
+        type: 'http',
+        url: mcpUrl,
+        headers: {
+          Authorization: 'Bearer YOUR_AUTH_TOKEN_HERE',
+        },
+      },
+    };
+  }
+  
+  log(JSON.stringify(exampleConfig, null, 2));
+  
+  if (!options.authToken) {
+    log('');
+    log('⚠️  Security Warning: No authentication configured!');
+    log('   To add authentication, reinstall with:');
+    log('   claude-chrome-mcp --install --auth-token "your-secret-token"');
+  }
 }
 
 /**
