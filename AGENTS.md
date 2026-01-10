@@ -122,12 +122,35 @@ MCP Client → claude-chrome-mcp → Native Host Socket → Chrome Extension →
 ```
 
 ### Key Files
-- **src/server.ts** - MCP server (registers 20 tools, translates protocols)
+- **src/server.ts** - MCP server (registers tools, translates protocols)
 - **src/native-client.ts** - Socket client (length-prefixed JSON protocol)
-- **src/tools.ts** - Tool definitions with Zod schemas
+- **src/tools.ts** - Tool definitions with Zod schemas (14 MCP-compatible tools)
 - **src/http-server.ts** - HTTP/SSE transport with session management
 - **src/cli.ts** - CLI entry point (stdio/HTTP transports)
 - **src/index.ts** - Package exports
+
+## Available Tools (14 MCP-compatible)
+
+| Tool | Description |
+|------|-------------|
+| `navigate` | Navigate to URLs, back/forward |
+| `computer` | Click, type, scroll, screenshot, keyboard |
+| `form_input` | Fill text inputs, select dropdowns |
+| `find` | Search for elements by text (use `query` param) |
+| `read_page` | Get DOM with element references |
+| `get_page_text` | Extract visible text content |
+| `tabs_context_mcp` | List tabs in MCP group (use first!) |
+| `tabs_create_mcp` | Create new tab in MCP group |
+| `resize_window` | Resize browser window |
+| `read_console_messages` | Read browser console |
+| `read_network_requests` | Read network activity |
+| `upload_image` | Upload image via drag-drop |
+| `gif_creator` | Record actions as GIF |
+| `javascript_tool` | Execute JS in page (use `text` param) |
+
+**Note**: Tools requiring conversation context are excluded:
+`tabs_context`, `tabs_create`, `update_plan`, `shortcuts_list`, 
+`shortcuts_execute`, `turn_answer_start`
 
 ## Testing Prerequisites
 

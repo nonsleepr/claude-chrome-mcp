@@ -113,24 +113,22 @@ For clients supporting HTTP/SSE:
 
 ## Available Tools
 
-The server exposes 20 browser automation tools (the extension supports all 20, though Claude Code only exposes 17 via its MCP interface):
+The server exposes 14 MCP-compatible browser automation tools:
 
 ### Navigation
-- **navigate** - Navigate to URLs or browser history
+- **navigate** - Navigate to URLs or browser history (use `tabId` param)
 
 ### Interaction
 - **computer** - Mouse clicks, keyboard input, scrolling, screenshots
-- **form_input** - Fill form fields (text, dropdown, checkbox)
-- **find** - Search for elements by text
+- **form_input** - Fill form fields (text, dropdown); use `computer` click for checkboxes
+- **find** - Search for elements by text (use `query` param, not `text`)
 
 ### Content
 - **read_page** - Parse page DOM with element references
 - **get_page_text** - Extract visible text content
 
 ### Tab Management
-- **tabs_context** - Get current tab information
-- **tabs_create** - Create new tabs
-- **tabs_context_mcp** - Get MCP tab group info
+- **tabs_context_mcp** - Get MCP tab group info (**call first with `createIfEmpty: true`**)
 - **tabs_create_mcp** - Create tab in MCP group
 - **resize_window** - Resize browser window
 
@@ -142,16 +140,12 @@ The server exposes 20 browser automation tools (the extension supports all 20, t
 - **upload_image** - Upload images via drag-drop
 - **gif_creator** - Record and export GIFs
 
-### Workflow
-- **update_plan** - Create/update task plans
-- **shortcuts_list** - List saved shortcuts
-- **shortcuts_execute** - Run shortcuts
-
 ### Code Execution
-- **javascript_tool** - Execute JavaScript in page context
+- **javascript_tool** - Execute JavaScript in page context (use `text` param for code)
 
-### Utility
-- **turn_answer_start** - Mark response start (UI coordination)
+**Note**: Tools requiring conversation context are not included:
+`tabs_context`, `tabs_create`, `update_plan`, `shortcuts_list`, 
+`shortcuts_execute`, `turn_answer_start`
 
 ## Examples
 

@@ -1,5 +1,5 @@
 /**
- * HTTP/SSE Server for Claude Chrome MCP
+ * HTTP Server for Claude Chrome MCP
  * 
  * Implements the MCP Streamable HTTP transport for network-accessible
  * browser automation.
@@ -8,7 +8,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { ChromeMcpServer } from './server.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { NativeHostClient } from './native-client.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { IncomingMessage, ServerResponse } from 'node:http';
 
 export interface HttpServerOptions {
   port: number;
@@ -19,56 +21,59 @@ export interface HttpServerOptions {
 
 interface Session {
   id: string;
-  transport: SSEServerTransport;
+  transport: StreamableHTTPServerTransport;
   server: ChromeMcpServer;
-  response: Response;
   createdAt: Date;
 }
 
 const sessions = new Map<string, Session>();
 
-// Shared global native host connection
-let sharedServer: ChromeMcpServer | null = null;
+// Flag to track if native host has been spawned
+let nativeHostSpawned = false;
 
 /**
- * Get or create the shared ChromeMcpServer instance
+ * Ensure native host is spawned (only once)
  */
-async function getSharedServer(options: HttpServerOptions): Promise<ChromeMcpServer> {
-  if (!sharedServer) {
-    console.error('[HTTP] Initializing shared native host connection...');
-    sharedServer = new ChromeMcpServer({
-      socketPath: options.socketPath,
-      spawnNativeHost: options.spawnNativeHost,
-    });
-    await sharedServer.connect();
-    console.error('[HTTP] Shared native host connection established');
+async function ensureNativeHostSpawned(options: HttpServerOptions): Promise<void> {
+  if (nativeHostSpawned || !options.spawnNativeHost) {
+    return;
   }
-  return sharedServer;
+  
+  console.error('[HTTP] Spawning native host (once at startup)...');
+  const tempClient = new NativeHostClient({ socketPath: options.socketPath });
+  await tempClient.spawnNativeHost();
+  // Don't connect - just spawn. Sessions will connect individually.
+  nativeHostSpawned = true;
+  console.error('[HTTP] Native host spawned successfully');
 }
 
 /**
- * Start the HTTP/SSE MCP server
+ * Start the HTTP MCP server
  */
 export async function startHttpServer(options: HttpServerOptions): Promise<void> {
   const app = express();
   const host = options.host || '127.0.0.1';
   const port = options.port;
-  
-  // Initialize shared server at startup
-  await getSharedServer(options);
 
-  // Middleware
+  // Spawn native host once at startup if requested
+  await ensureNativeHostSpawned(options);
+
+  // Middleware - parse JSON but also keep raw body for MCP
   app.use(express.json());
 
   // Security: Validate Origin header to prevent DNS rebinding
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin;
     if (origin) {
-      const url = new URL(origin);
-      if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
-        console.error(`[HTTP] Rejected request from origin: ${origin}`);
-        res.status(403).json({ error: 'Forbidden: Invalid origin' });
-        return;
+      try {
+        const url = new URL(origin);
+        if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+          console.error(`[HTTP] Rejected request from origin: ${origin}`);
+          res.status(403).json({ error: 'Forbidden: Invalid origin' });
+          return;
+        }
+      } catch {
+        // Invalid URL, allow it (might be a non-browser client)
       }
     }
     next();
@@ -76,7 +81,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
 
   // CORS headers for local development
   app.use((req: Request, res: Response, next: NextFunction) => {
-    res.header('Access-Control-Allow-Origin', 'http://localhost:*');
+    res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Accept, Mcp-Session-Id');
     res.header('Access-Control-Expose-Headers', 'Mcp-Session-Id');
@@ -96,105 +101,118 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     });
   });
 
-  // SSE endpoint - establishes SSE connection and returns session ID
-  app.get('/sse', async (req: Request, res: Response) => {
-    const sessionId = randomUUID();
-
-    console.error(`[HTTP] New SSE connection: ${sessionId}`);
-
-    // Set SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Mcp-Session-Id', sessionId);
-
-    try {
-      // Use the shared server instance instead of creating a new one
-      const server = await getSharedServer(options);
-
-      // Create SSE transport
-      // The SSE transport needs the response object and message endpoint
-      const transport = new SSEServerTransport(`/message?sessionId=${sessionId}`, res);
-
-      // Store session (but don't own the server - it's shared)
-      const session: Session = {
-        id: sessionId,
-        transport,
-        server, // Reference to shared server
-        response: res,
-        createdAt: new Date(),
-      };
-      sessions.set(sessionId, session);
-
-      // Connect MCP server to transport
-      await server.getMcpServer().connect(transport);
-
-      // Handle client disconnect
-      req.on('close', () => {
-        console.error(`[HTTP] SSE connection closed: ${sessionId}`);
-        cleanupSession(sessionId, false); // Don't disconnect the shared server
-      });
-
-      // Send keep-alive pings
-      const pingInterval = setInterval(() => {
-        if (!res.writableEnded) {
-          res.write(`event: ping\ndata: {"timestamp":${Date.now()}}\n\n`);
-        } else {
-          clearInterval(pingInterval);
-        }
-      }, 30000);
-
-    } catch (error) {
-      console.error(`[HTTP] Failed to establish SSE connection:`, error);
-      sessions.delete(sessionId);
-      
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to connect to native host' });
-      }
-    }
-  });
-
-  // Message endpoint - receives MCP messages
-  app.post('/message', async (req: Request, res: Response) => {
-    const sessionId = req.query.sessionId as string || req.headers['mcp-session-id'] as string;
-
-    if (!sessionId) {
-      res.status(400).json({ error: 'Missing sessionId' });
-      return;
-    }
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
-
-    try {
-      // Forward message to transport
-      await session.transport.handlePostMessage(req, res);
-    } catch (error) {
-      console.error(`[HTTP] Error handling message:`, error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    }
-  });
-
-  // Session termination endpoint
-  app.delete('/session/:sessionId', (req: Request, res: Response) => {
-    const { sessionId } = req.params;
+  // MCP endpoint - handles all MCP protocol messages
+  // Supports both GET (for SSE streaming) and POST (for messages)
+  app.all('/mcp', async (req: Request, res: Response) => {
+    // Check for existing session
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
     
-    if (sessions.has(sessionId)) {
-      cleanupSession(sessionId);
-      res.json({ status: 'terminated' });
-    } else {
-      res.status(404).json({ error: 'Session not found' });
+    // For initialization requests (no session ID), create a new session
+    if (!sessionId && req.method === 'POST') {
+      const newSessionId = randomUUID();
+      console.error(`[HTTP] New MCP session: ${newSessionId}`);
+      
+      try {
+        // Create MCP server for this session (don't spawn native host - already done at startup)
+        const server = new ChromeMcpServer({
+          socketPath: options.socketPath,
+          spawnNativeHost: false,  // Never spawn per-session, already spawned at startup
+        });
+        await server.connect();
+        
+        // Create transport with session ID generator
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => newSessionId,
+        });
+        
+        // Store session
+        const session: Session = {
+          id: newSessionId,
+          transport,
+          server,
+          createdAt: new Date(),
+        };
+        sessions.set(newSessionId, session);
+        
+        // Connect MCP server to transport
+        await server.getMcpServer().connect(transport);
+        
+        // Handle cleanup when transport closes
+        transport.onclose = () => {
+          console.error(`[HTTP] Transport closed for session: ${newSessionId}`);
+          cleanupSession(newSessionId);
+        };
+        
+        // Handle the request
+        await transport.handleRequest(
+          req as unknown as IncomingMessage,
+          res as unknown as ServerResponse,
+          req.body
+        );
+      } catch (error) {
+        console.error(`[HTTP] Failed to create session:`, error);
+        if (!res.headersSent) {
+          res.status(500).json({ 
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Failed to initialize session' },
+            id: null
+          });
+        }
+      }
+      return;
     }
+    
+    // For requests with a session ID, find the existing session
+    if (sessionId) {
+      const session = sessions.get(sessionId);
+      if (!session) {
+        res.status(404).json({
+          jsonrpc: '2.0',
+          error: { code: -32600, message: 'Session not found' },
+          id: null
+        });
+        return;
+      }
+      
+      try {
+        await session.transport.handleRequest(
+          req as unknown as IncomingMessage,
+          res as unknown as ServerResponse,
+          req.body
+        );
+      } catch (error) {
+        console.error(`[HTTP] Error handling request for session ${sessionId}:`, error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Internal error' },
+            id: null
+          });
+        }
+      }
+      return;
+    }
+    
+    // GET without session ID (for SSE) - reject for now
+    if (req.method === 'GET') {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: { code: -32600, message: 'Missing session ID for GET request' },
+        id: null
+      });
+      return;
+    }
+    
+    // Unknown request
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32600, message: 'Invalid request' },
+      id: null
+    });
   });
 
   // List available tools (convenience endpoint)
   app.get('/tools', (req: Request, res: Response) => {
-    // Import tools dynamically to avoid circular dependency issues
     import('./tools.js').then(({ allTools }) => {
       res.json({
         tools: allTools.map(t => ({
@@ -209,7 +227,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   return new Promise((resolve, reject) => {
     const server = app.listen(port, host, () => {
       console.error(`[HTTP] MCP Server listening on http://${host}:${port}`);
-      console.error(`[HTTP] SSE endpoint: http://${host}:${port}/sse`);
+      console.error(`[HTTP] MCP endpoint: http://${host}:${port}/mcp`);
       console.error(`[HTTP] Health check: http://${host}:${port}/health`);
       resolve();
     });
@@ -241,17 +259,12 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
 /**
  * Cleanup a specific session
  */
-function cleanupSession(sessionId: string, disconnectServer: boolean = true): void {
+function cleanupSession(sessionId: string): void {
   const session = sessions.get(sessionId);
   if (session) {
     console.error(`[HTTP] Cleaning up session: ${sessionId}`);
-    // Only disconnect if this session owns the server (not shared)
-    if (disconnectServer && session.server !== sharedServer) {
-      session.server.disconnect();
-    }
-    if (!session.response.writableEnded) {
-      session.response.end();
-    }
+    session.server.disconnect();
+    session.transport.close().catch(() => {});
     sessions.delete(sessionId);
   }
 }

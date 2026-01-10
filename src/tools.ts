@@ -1,11 +1,13 @@
 /**
- * Tool Definitions for Claude Browser Extension
+ * Tool Definitions for Claude Browser Extension MCP
  * 
- * These definitions are derived from the extension's mcpPermissions module
- * and provide MCP-compatible schemas for all 20 browser automation tools.
+ * These definitions provide MCP-compatible schemas for browser automation tools
+ * that work with the MCP tab group (not requiring conversation context).
  * 
- * Note: Claude Code only exposes 17 of these via MCP (excludes tabs_context,
- * tabs_create, and turn_answer_start), but the extension can execute all 20.
+ * Tools excluded (require conversation context):
+ * - tabs_context, tabs_create: Use tabs_context_mcp, tabs_create_mcp instead
+ * - update_plan, shortcuts_list, shortcuts_execute: Extension UI features
+ * - turn_answer_start: Extension UI coordination
  */
 
 import { z } from 'zod';
@@ -16,6 +18,12 @@ export interface ToolDefinition {
   inputSchema: z.ZodType<unknown>;
 }
 
+// Common optional parameters for tab targeting
+const tabTargetParams = {
+  tabId: z.number().optional().describe('Tab ID to execute the action on (from tabs_context_mcp)'),
+  tabGroupId: z.number().optional().describe('Tab group ID (from tabs_context_mcp)'),
+};
+
 // ============================================================================
 // Navigation Tools
 // ============================================================================
@@ -25,6 +33,7 @@ export const navigateTool: ToolDefinition = {
   description: 'Navigate to a URL in the browser. Use "back" or "forward" to navigate history.',
   inputSchema: z.object({
     url: z.string().describe('The URL to navigate to, or "back"/"forward" for history navigation'),
+    ...tabTargetParams,
   }),
 };
 
@@ -79,26 +88,27 @@ Actions:
       .describe('Start coordinates for drag action'),
     endCoordinate: z.array(z.number()).length(2).optional()
       .describe('End coordinates for drag action'),
+    ...tabTargetParams,
   }),
 };
 
 export const formInputTool: ToolDefinition = {
   name: 'form_input',
-  description: 'Fill form fields including text inputs, dropdowns, checkboxes, and radio buttons.',
+  description: 'Set values in form elements. For checkboxes, use computer tool with left_click action instead (checkbox values require boolean which MCP does not support well).',
   inputSchema: z.object({
     ref: z.string().describe('Element reference from read_page (e.g., "ref_1")'),
-    value: z.string().describe('Value to set in the form field'),
-    action: z.enum(['fill', 'select', 'check', 'uncheck']).optional()
-      .describe('Action type: fill for text, select for dropdown, check/uncheck for checkboxes'),
+    value: z.string().describe('Value to set. For text inputs use the text, for selects use option value or text.'),
+    ...tabTargetParams,
   }),
 };
 
 export const findTool: ToolDefinition = {
   name: 'find',
-  description: 'Search for elements on the page by text content.',
+  description: 'Search for elements on the page by text content. Returns element references that can be used with other tools.',
   inputSchema: z.object({
-    text: z.string().describe('Text to search for on the page'),
+    query: z.string().describe('Text to search for on the page'),
     exact: z.boolean().optional().describe('Whether to match exactly'),
+    ...tabTargetParams,
   }),
 };
 
@@ -113,6 +123,7 @@ Returns interactive elements (buttons, links, inputs) with references like "ref_
   inputSchema: z.object({
     selector: z.string().optional()
       .describe('CSS selector to scope the reading (optional)'),
+    ...tabTargetParams,
   }),
 };
 
@@ -122,26 +133,13 @@ export const getPageTextTool: ToolDefinition = {
   inputSchema: z.object({
     selector: z.string().optional()
       .describe('CSS selector to scope the text extraction (optional)'),
+    ...tabTargetParams,
   }),
 };
 
 // ============================================================================
 // Tab Management Tools
 // ============================================================================
-
-export const tabsContextTool: ToolDefinition = {
-  name: 'tabs_context',
-  description: 'Get information about the current tab and available tabs in the conversation tab group.',
-  inputSchema: z.object({}),
-};
-
-export const tabsCreateTool: ToolDefinition = {
-  name: 'tabs_create',
-  description: 'Create a new tab in the conversation tab group.',
-  inputSchema: z.object({
-    url: z.string().optional().describe('URL to open in the new tab (optional)'),
-  }),
-};
 
 export const tabsContextMcpTool: ToolDefinition = {
   name: 'tabs_context_mcp',
@@ -166,6 +164,7 @@ export const resizeWindowTool: ToolDefinition = {
   inputSchema: z.object({
     width: z.number().describe('Window width in pixels (max 8192)'),
     height: z.number().describe('Window height in pixels (max 8192)'),
+    ...tabTargetParams,
   }),
 };
 
@@ -183,6 +182,7 @@ export const readConsoleMessagesTool: ToolDefinition = {
       .describe('Only return error messages'),
     limit: z.number().optional()
       .describe('Maximum number of messages to return'),
+    ...tabTargetParams,
   }),
 };
 
@@ -194,6 +194,7 @@ export const readNetworkRequestsTool: ToolDefinition = {
       .describe('Regex pattern to filter by URL'),
     limit: z.number().optional()
       .describe('Maximum number of requests to return'),
+    ...tabTargetParams,
   }),
 };
 
@@ -209,6 +210,7 @@ export const uploadImageTool: ToolDefinition = {
     imageData: z.string().describe('Base64-encoded image data'),
     mimeType: z.string().optional().describe('Image MIME type (default: image/png)'),
     filename: z.string().optional().describe('Filename for the uploaded image'),
+    ...tabTargetParams,
   }),
 };
 
@@ -232,33 +234,7 @@ Actions:
       showWatermark: z.boolean().optional().describe('Show Claude watermark'),
       quality: z.number().optional().describe('GIF quality (1-100)'),
     }).optional().describe('Export options'),
-  }),
-};
-
-// ============================================================================
-// Workflow Tools
-// ============================================================================
-
-export const updatePlanTool: ToolDefinition = {
-  name: 'update_plan',
-  description: 'Create or update a workflow plan with structured tasks.',
-  inputSchema: z.object({
-    plan: z.string().describe('Plan content in markdown or structured format'),
-  }),
-};
-
-export const shortcutsListTool: ToolDefinition = {
-  name: 'shortcuts_list',
-  description: 'List saved shortcuts/workflows.',
-  inputSchema: z.object({}),
-};
-
-export const shortcutsExecuteTool: ToolDefinition = {
-  name: 'shortcuts_execute',
-  description: 'Execute a saved shortcut/workflow.',
-  inputSchema: z.object({
-    name: z.string().describe('Name of the shortcut to execute'),
-    params: z.record(z.unknown()).optional().describe('Parameters to pass to the shortcut'),
+    ...tabTargetParams,
   }),
 };
 
@@ -268,25 +244,16 @@ export const shortcutsExecuteTool: ToolDefinition = {
 
 export const javascriptTool: ToolDefinition = {
   name: 'javascript_tool',
-  description: 'Execute JavaScript code in the context of the current page.',
+  description: 'Execute JavaScript code in the context of the current page. The code runs in the page context and can interact with the DOM. Returns the result of the last expression. Do NOT use return statements.',
   inputSchema: z.object({
-    action: z.literal('javascript_exec').describe('Action type'),
-    code: z.string().describe('JavaScript code to execute'),
+    action: z.literal('javascript_exec').describe("Must be set to 'javascript_exec'"),
+    text: z.string().describe('The JavaScript code to execute. The result of the last expression will be returned automatically.'),
+    ...tabTargetParams,
   }),
 };
 
 // ============================================================================
-// Utility Tools
-// ============================================================================
-
-export const turnAnswerStartTool: ToolDefinition = {
-  name: 'turn_answer_start',
-  description: 'Mark the start of a response (UI coordination).',
-  inputSchema: z.object({}),
-};
-
-// ============================================================================
-// All Tools Export
+// All Tools Export (MCP-compatible tools only)
 // ============================================================================
 
 export const allTools: ToolDefinition[] = [
@@ -302,9 +269,7 @@ export const allTools: ToolDefinition[] = [
   readPageTool,
   getPageTextTool,
   
-  // Tab Management
-  tabsContextTool,
-  tabsCreateTool,
+  // Tab Management (MCP-specific)
   tabsContextMcpTool,
   tabsCreateMcpTool,
   resizeWindowTool,
@@ -317,16 +282,8 @@ export const allTools: ToolDefinition[] = [
   uploadImageTool,
   gifCreatorTool,
   
-  // Workflow
-  updatePlanTool,
-  shortcutsListTool,
-  shortcutsExecuteTool,
-  
   // Code Execution
   javascriptTool,
-  
-  // Utility
-  turnAnswerStartTool,
 ];
 
 export const toolsByName = new Map(allTools.map(t => [t.name, t]));

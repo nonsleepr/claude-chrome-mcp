@@ -326,7 +326,18 @@ export class NativeHostClient extends EventEmitter {
     // The native host sends responses for all pending requests
     // Since we don't have request IDs in the protocol, we resolve the oldest pending request
     
-    const response = message as ToolResponse;
+    // Native host wraps responses in { result: {...} } or { error: {...} }
+    const rawMessage = message as { result?: ToolResponse; error?: unknown };
+    let response: ToolResponse;
+    
+    if (rawMessage.result) {
+      response = rawMessage.result;
+    } else if (rawMessage.error) {
+      response = { error: typeof rawMessage.error === 'string' ? rawMessage.error : JSON.stringify(rawMessage.error) };
+    } else {
+      // Fallback - treat the whole message as the response
+      response = message as ToolResponse;
+    }
     
     // Get the oldest pending request
     const iterator = this.pendingRequests.entries().next();
