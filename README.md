@@ -2,10 +2,11 @@
 
 > Model Context Protocol server for browser automation via the Claude Chrome Extension
 
-A unified native host and MCP HTTP server that enables programmatic control of Chrome through the Claude Browser Extension. Connect any MCP-compatible client to automate browser interactions.
+A unified native host and MCP HTTP server that enables programmatic control of Chrome through the [Claude Browser Extension](https://claude.com/chrome). Connect any MCP-compatible client to automate browser interactions.
 
 ## Features
 
+- **Works with Claude.com Extension**: Integrates seamlessly with the official [Claude Chrome Extension](https://claude.com/chrome)
 - **Zero Configuration**: Automatic native host installation and Chrome integration
 - **MCP Standard**: Full compliance with Model Context Protocol over HTTP/SSE
 - **14 Browser Tools**: Navigate, interact, read content, manage tabs, debug, and more
@@ -22,6 +23,12 @@ graph LR
 
 ## Quick Start
 
+### 1. Install the Claude Browser Extension
+
+Visit [claude.com/chrome](https://claude.com/chrome) to install the official Claude Browser Extension.
+
+### 2. Install and Configure MCP Server
+
 ```bash
 # Install globally
 npm install -g claude-chrome-mcp
@@ -34,7 +41,7 @@ claude-chrome-mcp --install
 
 That's it! Chrome will now automatically launch the MCP server when the extension connects.
 
-## MCP Client Configuration
+### 3. Configure Your MCP Client
 
 Configure your MCP client (Claude Desktop, Cline, Continue, etc.) to connect:
 
@@ -59,10 +66,23 @@ npx claude-chrome-mcp --install
 
 ## Prerequisites
 
-- **Claude Browser Extension** installed in Chrome/Chromium
-  - Extension ID: `fcoeoabgfenejglbffodgkkbkcdhcgfn`
-  - [Install from Chrome Web Store](https://chrome.google.com/webstore)
-- **Node.js** 18.0.0 or later
+### Required
+
+1. **Claude Browser Extension** - Install from [claude.com/chrome](https://claude.com/chrome)
+   - Official extension ID: `fcoeoabgfenejglbffodgkkbkcdhcgfn`
+   - Required for browser automation capabilities
+
+2. **Node.js** 18.0.0 or later
+   - [Download from nodejs.org](https://nodejs.org/)
+
+### Supported Browsers
+
+- Google Chrome
+- Chromium
+- Brave (Chromium-based)
+- Microsoft Edge (Chromium-based)
+
+> **Note**: The extension must be installed and active in your browser for the MCP server to function.
 
 ## CLI Reference
 
@@ -279,6 +299,6 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## Related Projects
 
-- [Model Context Protocol](https://modelcontextprotocol.io) - MCP specification
-- [Claude Desktop](https://claude.ai/download) - MCP-compatible client
-- [Claude Browser Extension](https://github.com/anthropics/claude-browser-extension) - Chrome extension for browser automation
+- [Claude Browser Extension](https://claude.com/chrome) - Official Chrome extension for browser automation
+- [Model Context Protocol](https://modelcontextprotocol.io) - MCP specification and documentation
+- [Claude Desktop](https://claude.ai/download) - Desktop app with built-in MCP client support
