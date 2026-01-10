@@ -17,9 +17,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
-    "install": "node dist/cli.js --install",
-    "uninstall": "node dist/cli.js --uninstall",
-    "status": "node dist/cli.js --status"
+    "prepare": "npm run build"
   },
   "keywords": [
     "mcp",
