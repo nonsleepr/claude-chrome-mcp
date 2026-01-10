@@ -256,13 +256,20 @@ export class NativeHostClient extends EventEmitter {
       this.pendingRequests.set(id, { resolve, reject, timeout });
 
       // Send tool request in native host format
+      // Note: tabId and tabGroupId should be inside args per extension code
+      const args = { ...request.args };
+      if (request.tabId !== undefined) {
+        args.tabId = request.tabId;
+      }
+      if (request.tabGroupId !== undefined) {
+        args.tabGroupId = request.tabGroupId;
+      }
+      
       const message = {
         method: 'execute_tool',
         params: {
           tool: request.tool,
-          args: request.args,
-          tabId: request.tabId,
-          tabGroupId: request.tabGroupId,
+          args,
         },
       };
 

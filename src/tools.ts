@@ -145,8 +145,11 @@ export const tabsCreateTool: ToolDefinition = {
 
 export const tabsContextMcpTool: ToolDefinition = {
   name: 'tabs_context_mcp',
-  description: 'Get information about tabs in the MCP-specific tab group.',
-  inputSchema: z.object({}),
+  description: 'Get information about tabs in the MCP-specific tab group. CRITICAL: You must call this with createIfEmpty: true at least once before using other browser automation tools.',
+  inputSchema: z.object({
+    createIfEmpty: z.boolean().optional()
+      .describe('Creates a new MCP tab group if none exists. Set to true on first call.'),
+  }),
 };
 
 export const tabsCreateMcpTool: ToolDefinition = {
