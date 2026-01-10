@@ -1,18 +1,12 @@
 {
   "name": "claude-chrome-mcp",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "MCP server for browser automation via the Claude Chrome Extension (https://claude.com/chrome)",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "claude-chrome-mcp": "dist/cli.js"
   },
-  "files": [
-    "dist/",
-    "README.md",
-    "LICENSE",
-    "CONTRIBUTING.md"
-  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

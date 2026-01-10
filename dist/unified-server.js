@@ -17,7 +17,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import { NativeHost } from './native-host.js';
 import { allTools } from './tools.js';
-const VERSION = '1.0.0';
+const VERSION = '2.0.1';
 const DEFAULT_PORT = 3456;
 const TOOL_TIMEOUT_MS = 60000; // 60 seconds
 export class UnifiedServer {
