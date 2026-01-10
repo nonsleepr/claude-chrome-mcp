@@ -30,7 +30,7 @@ npx claude-chrome-mcp
 1. **Claude Browser Extension** installed in Chrome
 2. **Claude Code CLI** installed (`npm install -g @anthropic-ai/claude-code`)
 3. Chrome running with the extension active
-4. Native host configured (run `claude` once with Chrome integration enabled)
+4. **Native messaging configured** - see [Chrome Extension Setup](./CHROME_EXTENSION_SETUP.md)
 
 ## Usage
 
@@ -285,8 +285,12 @@ which claude
 ### "Socket not available"
 
 1. Make sure Chrome is running with the extension
-2. Run `claude` with Chrome integration enabled to set up the native host
-3. Check socket exists: `ls /tmp/claude-code-mcp-*.sock`
+2. Check socket exists: `ls /tmp/claude-mcp-browser-bridge-*`
+3. Use `--spawn` flag to auto-start the native host:
+
+```bash
+claude-chrome-mcp --spawn
+```
 
 ### "Not connected to native host"
 
@@ -295,6 +299,27 @@ The native host may not be running. Use `--spawn` flag to auto-start it:
 ```bash
 claude-chrome-mcp --spawn
 ```
+
+### Chrome Extension Integration
+
+For detailed setup instructions including native messaging configuration, see:
+
+**[Chrome Extension Setup Guide](./CHROME_EXTENSION_SETUP.md)**
+
+This covers:
+- Native messaging manifest installation
+- Platform-specific configuration (Linux, macOS, Windows)
+- NixOS-specific notes
+- Verification and diagnostics
+
+### "No tab available" Error
+
+The extension needs at least one open tab to execute tools:
+
+1. Open Chrome/Chromium
+2. Navigate to any website (e.g., https://example.com)
+3. Ensure the extension is active
+4. Try the tool again
 
 ### Permission Errors
 
