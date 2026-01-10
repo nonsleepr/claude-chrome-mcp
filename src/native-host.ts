@@ -5,8 +5,8 @@
  * Wire format: [4 bytes length (LE uint32)][N bytes JSON (UTF-8)]
  * 
  * Message flow:
- * - Chrome sends: pong, status_response, tool_response, mcp_connected, mcp_disconnected
- * - We send: ping, get_status, tool_request, get_mcp_endpoint, mcp_endpoint
+ * - Chrome sends: ping, get_status, tool_response, mcp_connected, mcp_disconnected, get_mcp_endpoint
+ * - We send: pong, status_response, tool_request, mcp_endpoint
  */
 
 import { EventEmitter } from 'events';
@@ -23,6 +23,10 @@ export interface ToolResponseMessage {
   error?: {
     content: string;
   };
+}
+
+export interface PingMessage {
+  type: 'ping';
 }
 
 export interface PongMessage {
@@ -43,13 +47,19 @@ export interface McpDisconnectedMessage {
   type: 'mcp_disconnected';
 }
 
+export interface GetStatusMessage {
+  type: 'get_status';
+}
+
 export interface GetMcpEndpointMessage {
   type: 'get_mcp_endpoint';
 }
 
 export type ChromeMessage =
   | ToolResponseMessage
+  | PingMessage
   | PongMessage
+  | GetStatusMessage
   | StatusResponseMessage
   | McpConnectedMessage
   | McpDisconnectedMessage
@@ -74,7 +84,9 @@ export interface ToolResponse {
 // Event types emitted by NativeHost
 export interface NativeHostEvents {
   'tool_response': (response: ToolResponseMessage) => void;
+  'ping': (message: PingMessage) => void;
   'pong': (message: PongMessage) => void;
+  'get_status': (message: GetStatusMessage) => void;
   'status_response': (message: StatusResponseMessage) => void;
   'mcp_connected': () => void;
   'mcp_disconnected': () => void;
@@ -160,10 +172,24 @@ export class NativeHost extends EventEmitter {
   }
 
   /**
+   * Send pong in response to ping
+   */
+  sendPong(): void {
+    this.send({ type: 'pong', timestamp: Date.now() });
+  }
+
+  /**
    * Request status from Chrome
    */
   sendGetStatus(): void {
     this.send({ type: 'get_status' });
+  }
+
+  /**
+   * Send status response
+   */
+  sendStatusResponse(version: string): void {
+    this.send({ type: 'status_response', native_host_version: version });
   }
 
   /**
@@ -240,8 +266,16 @@ export class NativeHost extends EventEmitter {
    */
   private handleMessage(message: ChromeMessage): void {
     switch (message.type) {
+      case 'ping':
+        this.emit('ping', message);
+        break;
+
       case 'pong':
         this.emit('pong', message);
+        break;
+
+      case 'get_status':
+        this.emit('get_status', message);
         break;
 
       case 'status_response':

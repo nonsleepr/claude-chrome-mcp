@@ -169,6 +169,18 @@ export class UnifiedServer {
       this.nativeHost.sendMcpEndpoint(`http://localhost:${this.actualPort}/mcp`);
     });
 
+    // Handle ping (respond with pong for health check)
+    this.nativeHost.on('ping', () => {
+      console.error('[UnifiedServer] Received ping, sending pong');
+      this.nativeHost.sendPong();
+    });
+
+    // Handle get_status (respond with status_response)
+    this.nativeHost.on('get_status', () => {
+      console.error('[UnifiedServer] Received get_status, sending status_response');
+      this.nativeHost.sendStatusResponse(VERSION);
+    });
+
     // Handle pong (health check response)
     this.nativeHost.on('pong', () => {
       console.error('[UnifiedServer] Received pong from Chrome');
