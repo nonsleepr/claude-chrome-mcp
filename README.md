@@ -285,13 +285,12 @@ Check native host logs (all logging goes to stderr):
 - Open `chrome://extensions` → Claude Extension → Details → Inspect views → Service Worker
 - Look for native host connection messages
 
-For detailed troubleshooting, see [docs/ADVANCED_SETUP.md](./docs/ADVANCED_SETUP.md).
-
 ## Contributing
 
 Contributions are welcome! Please see:
+- [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines and workflow
 - [AGENTS.md](./AGENTS.md) - Development guidelines and coding standards
-- [docs/](./docs/) - Technical documentation and specifications
+- [docs/](./docs/) - Technical architecture and developer documentation
 
 ## License
 
