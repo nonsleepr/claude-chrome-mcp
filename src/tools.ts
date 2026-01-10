@@ -1,13 +1,8 @@
 /**
  * Tool Definitions for Claude Browser Extension MCP
  * 
- * These definitions provide MCP-compatible schemas for browser automation tools
- * that work with the MCP tab group (not requiring conversation context).
- * 
- * Tools excluded (require conversation context):
- * - tabs_context, tabs_create: Use tabs_context_mcp, tabs_create_mcp instead
- * - update_plan, shortcuts_list, shortcuts_execute: Extension UI features
- * - turn_answer_start: Extension UI coordination
+ * These definitions provide MCP-compatible schemas for browser automation tools.
+ * All tools work with an automatically managed MCP tab group.
  */
 
 import { z } from 'zod';
@@ -20,8 +15,8 @@ export interface ToolDefinition {
 
 // Common optional parameters for tab targeting
 const tabTargetParams = {
-  tabId: z.number().optional().describe('Tab ID to execute the action on (from tabs_context_mcp)'),
-  tabGroupId: z.number().optional().describe('Tab group ID (from tabs_context_mcp)'),
+  tabId: z.number().optional().describe('Tab ID to execute the action on (from tabs_context)'),
+  tabGroupId: z.number().optional().describe('Tab group ID (optional - auto-filled if not provided)'),
 };
 
 // ============================================================================
@@ -141,18 +136,18 @@ export const getPageTextTool: ToolDefinition = {
 // Tab Management Tools
 // ============================================================================
 
-export const tabsContextMcpTool: ToolDefinition = {
-  name: 'tabs_context_mcp',
-  description: 'Get information about tabs in the MCP-specific tab group. CRITICAL: You must call this with createIfEmpty: true at least once before using other browser automation tools.',
+export const tabsContextTool: ToolDefinition = {
+  name: 'tabs_context',
+  description: 'Get information about tabs in the browser tab group. Returns tab IDs, titles, URLs, and group information.',
   inputSchema: z.object({
     createIfEmpty: z.boolean().optional()
-      .describe('Creates a new MCP tab group if none exists. Set to true on first call.'),
+      .describe('Creates a new tab group if none exists (internal use - handled automatically)'),
   }),
 };
 
-export const tabsCreateMcpTool: ToolDefinition = {
-  name: 'tabs_create_mcp',
-  description: 'Create a new tab specifically in the MCP tab group.',
+export const tabsCreateTool: ToolDefinition = {
+  name: 'tabs_create',
+  description: 'Create a new tab in the browser tab group.',
   inputSchema: z.object({
     url: z.string().optional().describe('URL to open in the new tab (optional)'),
   }),
@@ -269,9 +264,9 @@ export const allTools: ToolDefinition[] = [
   readPageTool,
   getPageTextTool,
   
-  // Tab Management (MCP-specific)
-  tabsContextMcpTool,
-  tabsCreateMcpTool,
+  // Tab Management
+  tabsContextTool,
+  tabsCreateTool,
   resizeWindowTool,
   
   // Debugging

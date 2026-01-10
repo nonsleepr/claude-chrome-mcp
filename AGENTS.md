@@ -139,8 +139,8 @@ MCP Client → claude-chrome-mcp → Native Host Socket → Chrome Extension →
 | `find` | Search for elements by text (use `query` param) |
 | `read_page` | Get DOM with element references |
 | `get_page_text` | Extract visible text content |
-| `tabs_context_mcp` | List tabs in MCP group (use first!) |
-| `tabs_create_mcp` | Create new tab in MCP group |
+| `tabs_context` | List tabs in browser tab group |
+| `tabs_create` | Create new tab in browser tab group |
 | `resize_window` | Resize browser window |
 | `read_console_messages` | Read browser console |
 | `read_network_requests` | Read network activity |
@@ -148,9 +148,7 @@ MCP Client → claude-chrome-mcp → Native Host Socket → Chrome Extension →
 | `gif_creator` | Record actions as GIF |
 | `javascript_tool` | Execute JS in page (use `text` param) |
 
-**Note**: Tools requiring conversation context are excluded:
-`tabs_context`, `tabs_create`, `update_plan`, `shortcuts_list`, 
-`shortcuts_execute`, `turn_answer_start`
+**Note**: Tab group initialization is automatic - no need to call `tabs_context` explicitly before using other tools.
 
 ## Testing Prerequisites
 

@@ -34,6 +34,7 @@ interface PendingToolRequest {
   resolve: (response: ToolResult) => void;
   reject: (error: Error) => void;
   timeout: NodeJS.Timeout;
+  rawResultCallback?: (result: { content: unknown; tabContext?: TabContext }) => void;
 }
 
 interface Session {
@@ -58,6 +59,8 @@ export class UnifiedServer {
   private requestId = 0;
   private actualPort = 0;
   private options: UnifiedServerOptions;
+  private mcpTabGroupId: number | null = null;
+  private initializingGroup = false;
 
   constructor(options: UnifiedServerOptions = {}) {
     this.options = options;
@@ -146,6 +149,11 @@ export class UnifiedServer {
         const [id, pending] = iterator.value;
         clearTimeout(pending.timeout);
         this.pendingToolRequests.delete(id);
+
+        // If there's a raw result callback, call it first
+        if (pending.rawResultCallback && response.result) {
+          pending.rawResultCallback(response.result);
+        }
 
         if (response.error) {
           const errorMsg = typeof response.error.content === 'string'
@@ -422,15 +430,86 @@ export class UnifiedServer {
   }
 
   /**
-   * Execute a tool by sending request to Chrome and waiting for response
+   * Initialize the MCP tab group by calling tabs_context with createIfEmpty: true
+   * This is called automatically before the first tool execution that needs it.
    */
-  private async executeTool(
+  private async initializeMcpGroup(): Promise<void> {
+    // Already initialized or currently initializing
+    if (this.mcpTabGroupId !== null || this.initializingGroup) {
+      return;
+    }
+
+    this.initializingGroup = true;
+    console.error('[UnifiedServer] Auto-initializing MCP tab group...');
+
+    try {
+      // Call tabs_context with createIfEmpty to initialize the group
+      let extractedGroupId: number | null = null;
+      
+      const result = await this.executeToolDirectWithCallback(
+        'tabs_context', 
+        { createIfEmpty: true },
+        (raw: { content: unknown; tabContext?: TabContext }) => {
+          if (raw.tabContext && raw.tabContext.tabGroupId) {
+            extractedGroupId = raw.tabContext.tabGroupId;
+          }
+        }
+      );
+      
+      // Extract tab group ID from the callback
+      if (extractedGroupId !== null) {
+        this.mcpTabGroupId = extractedGroupId;
+        console.error(`[UnifiedServer] MCP tab group initialized with ID: ${this.mcpTabGroupId}`);
+      } else {
+        // If no group ID in response, we'll let it try again on next call
+        console.error('[UnifiedServer] Warning: Could not extract tab group ID from initialization');
+      }
+    } catch (error) {
+      console.error('[UnifiedServer] Failed to initialize MCP tab group:', error);
+      throw new Error('Failed to initialize browser tab group. Please ensure the Chrome extension is active.');
+    } finally {
+      this.initializingGroup = false;
+    }
+  }
+
+  /**
+   * Execute a tool with a callback to receive the raw result
+   */
+  private async executeToolDirectWithCallback(
+    tool: string,
+    args: Record<string, unknown>,
+    rawResultCallback: (result: { content: unknown; tabContext?: TabContext }) => void
+  ): Promise<ToolResult> {
+    const id = String(++this.requestId);
+    const transformedArgs = this.transformArgs(tool, args);
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingToolRequests.delete(id);
+        resolve({
+          content: [{ type: 'text', text: `Error: Tool execution timed out after ${TOOL_TIMEOUT_MS}ms` }],
+        });
+      }, TOOL_TIMEOUT_MS);
+
+      this.pendingToolRequests.set(id, { 
+        resolve, 
+        reject, 
+        timeout,
+        rawResultCallback,
+      });
+
+      this.nativeHost.sendToolRequest(tool, transformedArgs);
+    });
+  }
+
+  /**
+   * Execute a tool directly without auto-initialization (used internally)
+   */
+  private async executeToolDirect(
     tool: string,
     args: Record<string, unknown>
   ): Promise<ToolResult> {
     const id = String(++this.requestId);
-
-    // Transform args for specific tools
     const transformedArgs = this.transformArgs(tool, args);
 
     return new Promise((resolve, reject) => {
@@ -442,10 +521,38 @@ export class UnifiedServer {
       }, TOOL_TIMEOUT_MS);
 
       this.pendingToolRequests.set(id, { resolve, reject, timeout });
-
-      // Send tool request to Chrome via native host
       this.nativeHost.sendToolRequest(tool, transformedArgs);
     });
+  }
+
+  /**
+   * Execute a tool by sending request to Chrome and waiting for response
+   */
+  private async executeTool(
+    tool: string,
+    args: Record<string, unknown>
+  ): Promise<ToolResult> {
+    // Auto-initialize MCP group for tools that need it (everything except tabs_context itself)
+    if (tool !== 'tabs_context') {
+      try {
+        await this.initializeMcpGroup();
+      } catch (error) {
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Error: ${error instanceof Error ? error.message : String(error)}` 
+          }],
+        };
+      }
+
+      // Auto-inject tabGroupId if not provided
+      if (!args.tabGroupId && this.mcpTabGroupId !== null) {
+        args = { ...args, tabGroupId: this.mcpTabGroupId };
+      }
+    }
+
+    // Execute the tool
+    return this.executeToolDirect(tool, args);
   }
 
   /**

@@ -57,7 +57,7 @@ Standard HTTP POST requests to `/mcp` endpoint with JSON-RPC 2.0 format.
 | **Navigation** | navigate |
 | **Interaction** | computer, form_input, find |
 | **Content** | read_page, get_page_text |
-| **Tab Management** | tabs_context_mcp, tabs_create_mcp, resize_window |
+| **Tab Management** | tabs_context, tabs_create, resize_window |
 | **Debugging** | read_console_messages, read_network_requests |
 | **Media** | upload_image, gif_creator |
 | **Code Execution** | javascript_tool |

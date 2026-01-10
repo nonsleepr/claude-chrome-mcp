@@ -128,8 +128,8 @@ The server exposes 14 browser automation tools:
 ### Tab Management
 | Tool | Description |
 |------|-------------|
-| `tabs_context_mcp` | List tabs in MCP group (**call first with `createIfEmpty: true`**) |
-| `tabs_create_mcp` | Create new tab in MCP group |
+| `tabs_context` | List tabs in browser tab group |
+| `tabs_create` | Create new tab in browser tab group |
 | `resize_window` | Resize browser window |
 
 ### Debugging
@@ -151,25 +151,13 @@ The server exposes 14 browser automation tools:
 
 ## Examples
 
-### Initialize Tab Context (Do This First!)
-
-```json
-{
-  "tool": "tabs_context_mcp",
-  "arguments": {
-    "createIfEmpty": true
-  }
-}
-```
-
 ### Navigate to a URL
 
 ```json
 {
   "tool": "navigate",
   "arguments": {
-    "url": "https://example.com",
-    "tabId": 123
+    "url": "https://example.com"
   }
 }
 ```
@@ -181,8 +169,7 @@ The server exposes 14 browser automation tools:
   "tool": "computer",
   "arguments": {
     "action": "left_click",
-    "ref": "ref_1",
-    "tabId": 123
+    "ref": "ref_1"
   }
 }
 ```
@@ -193,8 +180,7 @@ The server exposes 14 browser automation tools:
 {
   "tool": "computer",
   "arguments": {
-    "action": "screenshot",
-    "tabId": 123
+    "action": "screenshot"
   }
 }
 ```
@@ -206,8 +192,7 @@ The server exposes 14 browser automation tools:
   "tool": "javascript_tool",
   "arguments": {
     "action": "javascript_exec",
-    "text": "document.title",
-    "tabId": 123
+    "text": "document.title"
   }
 }
 ```

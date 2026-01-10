@@ -145,8 +145,8 @@ AVAILABLE TOOLS
   - find              Search for elements by text
   - read_page         Get DOM with element references
   - get_page_text     Extract visible text
-  - tabs_context_mcp  List tabs in MCP group
-  - tabs_create_mcp   Create tab in MCP group
+  - tabs_context      List tabs in browser tab group
+  - tabs_create       Create tab in browser tab group
   - resize_window     Resize browser window
   - read_console_messages  Read browser console
   - read_network_requests  Read network activity
