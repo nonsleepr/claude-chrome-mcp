@@ -317,6 +317,95 @@ npm run build
 npm run dev
 ```
 
+## Testing
+
+### Prerequisites
+
+Before testing, ensure the native host is running:
+
+```bash
+# Start the native host in a separate terminal
+claude --chrome-native-host
+```
+
+You should see:
+```
+[Claude Chrome Native Host] Initializing...
+[Claude Chrome Native Host] Creating socket listener: /tmp/claude-mcp-browser-bridge-<username>
+[Claude Chrome Native Host] Socket server listening for connections
+[Claude Chrome Native Host] Socket permissions set to 0600
+```
+
+### Running Tests
+
+The project includes several test scripts:
+
+#### 1. Simple Connection Test
+
+Tests socket connectivity:
+
+```bash
+node simple-test.js
+```
+
+#### 2. Comprehensive Test Suite
+
+Interactive test suite that tests all major tools:
+
+```bash
+node test-comprehensive.js
+```
+
+This will test:
+- Navigation (`navigate`)
+- Page reading (`read_page`, `get_page_text`)
+- Screenshots (`computer`)
+- Element finding (`find`)
+- Tab management (`tabs_context_mcp`)
+- JavaScript execution (`javascript_tool`)
+- Console messages (`read_console_messages`)
+- Network requests (`read_network_requests`)
+- Scrolling (`computer`)
+
+After running the automated tests, the script enters interactive mode where you can manually test commands.
+
+#### 3. HTTP API Test
+
+Test the HTTP/SSE transport:
+
+```bash
+# Start the HTTP server (in separate terminal)
+node dist/cli.js --http 3456
+
+# Run HTTP tests
+node test-http-api.js
+```
+
+### Troubleshooting Tests
+
+**Socket not found:**
+- Ensure `claude --chrome-native-host` is running
+- Check socket exists: `ls -la /tmp/claude-mcp-browser-bridge-*`
+- Verify Chrome is running with the extension enabled
+
+**Connection timeout:**
+- The Chrome extension must be installed and active
+- The extension needs to connect to the native host first
+- Try opening a new tab or refreshing the extension
+- Check Chrome extension logs (chrome://extensions > Details > Inspect views)
+
+**Tool execution fails:**
+- Verify the extension has permissions for the current domain
+- Check the browser console for errors
+- Ensure you're on a valid webpage (not chrome:// URLs)
+
+### Test Files
+
+- `simple-test.js` - Socket connection diagnostics
+- `test-comprehensive.js` - Full interactive test suite
+- `test-http-api.js` - HTTP/SSE transport tests
+- `test-mcp.js` - Alternative interactive test interface
+
 ## License
 
 MIT

@@ -157,40 +157,44 @@ export class NativeHostClient extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       this.socket = net.createConnection(this.socketPath);
+      let connectionResolved = false;
 
       const onConnect = () => {
         console.error(`[NativeHostClient] Connected to ${this.socketPath}`);
         this.connected = true;
-        
-        // Remove the one-time error handler
-        this.socket?.removeListener('error', onError);
-        
-        // Add permanent error handler for runtime errors
-        this.socket?.on('error', (err) => {
-          console.error('[NativeHostClient] Socket error:', err);
-          this.emit('error', err);
-        });
+        connectionResolved = true;
         
         this.emit('connected');
         resolve();
       };
 
       const onError = (err: Error) => {
-        console.error('[NativeHostClient] Connection failed:', err);
-        
-        // Clean up listeners
-        this.socket?.removeListener('connect', onConnect);
-        
-        // Only emit error event if there are listeners to prevent unhandled error
-        if (this.listenerCount('error') > 0) {
-          this.emit('error', err);
+        if (!connectionResolved) {
+          // Connection phase error
+          console.error('[NativeHostClient] Connection failed:', err);
+          
+          // Clean up listeners
+          this.socket?.removeListener('connect', onConnect);
+          
+          // Only emit error event if there are listeners to prevent unhandled error
+          if (this.listenerCount('error') > 0) {
+            this.emit('error', err);
+          }
+          
+          connectionResolved = true;
+          reject(err);
+        } else {
+          // Runtime error after successful connection
+          console.error('[NativeHostClient] Socket error:', err);
+          // Only emit if we have listeners
+          if (this.listenerCount('error') > 0) {
+            this.emit('error', err);
+          }
         }
-        
-        reject(err);
       };
 
       this.socket.once('connect', onConnect);
-      this.socket.once('error', onError);
+      this.socket.on('error', onError);
 
       this.socket.on('data', (data) => {
         this.handleData(data);
