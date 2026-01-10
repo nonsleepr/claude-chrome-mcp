@@ -1,7 +1,7 @@
 {
   "name": "claude-chrome-mcp",
-  "version": "1.0.0",
-  "description": "MCP server adapter for Claude Browser Extension",
+  "version": "2.0.0",
+  "description": "Unified native host and MCP HTTP server for Claude Browser Extension browser automation",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -10,20 +10,28 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/cli.js",
-    "start:http": "node dist/cli.js --http",
     "dev": "tsc --watch",
-    "test": "node --test dist/**/*.test.js"
+    "install-native-host": "node dist/cli.js --install",
+    "uninstall-native-host": "node dist/cli.js --uninstall",
+    "status": "node dist/cli.js --status"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "claude",
     "browser",
     "automation",
     "chrome",
-    "extension"
+    "extension",
+    "native-host",
+    "native-messaging"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/claude-chrome-mcp"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "express": "^4.21.0",

@@ -1,153 +1,149 @@
 # Claude Chrome MCP
 
-An MCP (Model Context Protocol) server adapter that exposes Claude Browser Extension's browser automation tools to any MCP-compatible client.
+A unified native host and MCP HTTP server for browser automation through the Claude Chrome Extension.
 
 ## Overview
 
-This package bridges the gap between the Claude Browser Extension's native messaging protocol and the standard MCP protocol, allowing any MCP client (Claude Desktop, Cline, Continue, custom clients, etc.) to control Chrome browser automation.
+This package provides a standalone native messaging host that bridges the Claude Chrome Extension with any MCP-compatible client. Unlike the previous approach that required the Claude CLI, this package is self-contained.
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  MCP Client  │────▶│ claude-chrome│────▶│ Native Host  │────▶│  Extension   │
-│  (any)       │ MCP │     -mcp     │sock │ (claude CLI) │stdio│  (Chrome)    │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+┌──────────────┐                    ┌─────────────────────────────────────┐                    ┌──────────────┐
+│  MCP Client  │◄── HTTP/MCP ──────►│        claude-chrome-mcp            │◄── Chrome Native ──►│  Chrome      │
+│  (any)       │   localhost:3456   │  (native host + HTTP MCP server)    │    Messaging        │  Extension   │
+└──────────────┘                    └─────────────────────────────────────┘                    └──────────────┘
 ```
+
+**Key Features:**
+- **Self-contained**: No dependency on `claude --chrome-native-host`
+- **Single process**: Native host and MCP server run together
+- **Easy setup**: One command to install (`--install`)
+- **Auto-start**: Chrome launches the native host automatically
 
 ## Installation
 
 ```bash
+# Install globally
 npm install -g claude-chrome-mcp
+
+# Register as Chrome native messaging host
+claude-chrome-mcp --install
+
+# Restart Chrome completely
 ```
 
 Or run directly with npx:
 
 ```bash
-npx claude-chrome-mcp
+npx claude-chrome-mcp --install
 ```
 
 ## Prerequisites
 
-1. **Claude Browser Extension** installed in Chrome
-2. **Claude Code CLI** installed (`npm install -g @anthropic-ai/claude-code`)
-3. Chrome running with the extension active
-4. **Native messaging configured** - see [Chrome Extension Setup](./CHROME_EXTENSION_SETUP.md)
+1. **Claude Browser Extension** installed in Chrome/Chromium
+   - Extension ID: `fcoeoabgfenejglbffodgkkbkcdhcgfn`
+2. **Node.js** 18.0.0 or later
 
-## Usage
+## How It Works
 
-### stdio Transport (Recommended)
-
-For MCP clients that spawn servers as subprocesses:
-
-```bash
-claude-chrome-mcp
-```
-
-With native host auto-spawn:
-
-```bash
-claude-chrome-mcp --spawn
-```
-
-### HTTP/SSE Transport
-
-For network-accessible server:
-
-```bash
-claude-chrome-mcp --http
-```
-
-With custom port:
-
-```bash
-claude-chrome-mcp --http 8080
-```
+1. When the Chrome extension connects, Chrome automatically launches `claude-chrome-mcp`
+2. The server starts listening for HTTP connections on port 3456 (or next available)
+3. MCP clients connect via HTTP to `http://localhost:3456/mcp`
+4. Tool requests flow: MCP Client → HTTP → Native Host → Chrome Extension → Browser
 
 ## MCP Client Configuration
 
-### Claude Desktop
-
-Add to `claude_desktop_config.json`:
+Configure your MCP client to connect via HTTP:
 
 ```json
 {
   "mcpServers": {
-    "claude-chrome": {
-      "command": "claude-chrome-mcp",
-      "args": ["--spawn"]
-    }
-  }
-}
-```
-
-### Cline / Continue
-
-Add to your MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "claude-chrome": {
-      "command": "npx",
-      "args": ["claude-chrome-mcp", "--spawn"]
-    }
-  }
-}
-```
-
-### HTTP Transport
-
-For clients supporting HTTP/SSE:
-
-```json
-{
-  "mcpServers": {
-    "claude-chrome": {
+    "chrome-browser": {
       "transport": {
         "type": "sse",
-        "url": "http://localhost:3456/sse"
+        "url": "http://localhost:3456/mcp"
       }
     }
   }
 }
 ```
 
+## CLI Usage
+
+```bash
+# Install native host manifest
+claude-chrome-mcp --install
+
+# Install with custom extension ID
+claude-chrome-mcp --install --extension-id YOUR_EXTENSION_ID
+
+# Check installation status
+claude-chrome-mcp --status
+
+# Uninstall
+claude-chrome-mcp --uninstall
+
+# Show help
+claude-chrome-mcp --help
+```
+
 ## Available Tools
 
-The server exposes 14 MCP-compatible browser automation tools:
+The server exposes 14 browser automation tools:
 
 ### Navigation
-- **navigate** - Navigate to URLs or browser history (use `tabId` param)
+| Tool | Description |
+|------|-------------|
+| `navigate` | Navigate to URLs, back/forward |
 
 ### Interaction
-- **computer** - Mouse clicks, keyboard input, scrolling, screenshots
-- **form_input** - Fill form fields (text, dropdown); use `computer` click for checkboxes
-- **find** - Search for elements by text (use `query` param, not `text`)
+| Tool | Description |
+|------|-------------|
+| `computer` | Click, type, scroll, screenshot, keyboard |
+| `form_input` | Fill text inputs, select dropdowns |
+| `find` | Search for elements by text |
 
 ### Content
-- **read_page** - Parse page DOM with element references
-- **get_page_text** - Extract visible text content
+| Tool | Description |
+|------|-------------|
+| `read_page` | Get DOM with element references |
+| `get_page_text` | Extract visible text content |
 
 ### Tab Management
-- **tabs_context_mcp** - Get MCP tab group info (**call first with `createIfEmpty: true`**)
-- **tabs_create_mcp** - Create tab in MCP group
-- **resize_window** - Resize browser window
+| Tool | Description |
+|------|-------------|
+| `tabs_context_mcp` | List tabs in MCP group (**call first with `createIfEmpty: true`**) |
+| `tabs_create_mcp` | Create new tab in MCP group |
+| `resize_window` | Resize browser window |
 
 ### Debugging
-- **read_console_messages** - Read browser console
-- **read_network_requests** - Monitor network requests
+| Tool | Description |
+|------|-------------|
+| `read_console_messages` | Read browser console |
+| `read_network_requests` | Read network activity |
 
 ### Media
-- **upload_image** - Upload images via drag-drop
-- **gif_creator** - Record and export GIFs
+| Tool | Description |
+|------|-------------|
+| `upload_image` | Upload image via drag-drop |
+| `gif_creator` | Record actions as GIF |
 
 ### Code Execution
-- **javascript_tool** - Execute JavaScript in page context (use `text` param for code)
-
-**Note**: Tools requiring conversation context are not included:
-`tabs_context`, `tabs_create`, `update_plan`, `shortcuts_list`, 
-`shortcuts_execute`, `turn_answer_start`
+| Tool | Description |
+|------|-------------|
+| `javascript_tool` | Execute JavaScript in page context |
 
 ## Examples
+
+### Initialize Tab Context (Do This First!)
+
+```json
+{
+  "tool": "tabs_context_mcp",
+  "arguments": {
+    "createIfEmpty": true
+  }
+}
+```
 
 ### Navigate to a URL
 
@@ -155,7 +151,8 @@ The server exposes 14 MCP-compatible browser automation tools:
 {
   "tool": "navigate",
   "arguments": {
-    "url": "https://example.com"
+    "url": "https://example.com",
+    "tabId": 123
   }
 }
 ```
@@ -167,28 +164,8 @@ The server exposes 14 MCP-compatible browser automation tools:
   "tool": "computer",
   "arguments": {
     "action": "left_click",
-    "coordinate": [500, 300]
-  }
-}
-```
-
-### Read Page Content
-
-```json
-{
-  "tool": "read_page",
-  "arguments": {}
-}
-```
-
-### Fill a Form Field
-
-```json
-{
-  "tool": "form_input",
-  "arguments": {
     "ref": "ref_1",
-    "value": "Hello World"
+    "tabId": 123
   }
 }
 ```
@@ -199,64 +176,48 @@ The server exposes 14 MCP-compatible browser automation tools:
 {
   "tool": "computer",
   "arguments": {
-    "action": "screenshot"
+    "action": "screenshot",
+    "tabId": 123
   }
 }
 ```
 
-## API Reference
+### Execute JavaScript
 
-### CLI Options
-
-| Option | Description |
-|--------|-------------|
-| `--help, -h` | Show help message |
-| `--http [port]` | Use HTTP/SSE transport (default port: 3456) |
-| `--spawn, -s` | Spawn native host if not running |
-| `--socket <path>` | Custom socket path |
-
-### HTTP Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/sse` | GET | Establish SSE connection |
-| `/message` | POST | Send MCP message |
-| `/health` | GET | Health check |
-| `/tools` | GET | List available tools |
+```json
+{
+  "tool": "javascript_tool",
+  "arguments": {
+    "action": "javascript_exec",
+    "text": "document.title",
+    "tabId": 123
+  }
+}
+```
 
 ## Architecture
 
-### Protocol Translation
+### Message Flow
 
-The adapter translates between:
-
-**MCP Format (input):**
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "navigate",
-    "arguments": {"url": "https://example.com"}
-  }
-}
 ```
-
-**Native Host Format (internal):**
-```json
-{
-  "method": "execute_tool",
-  "params": {
-    "tool": "navigate",
-    "args": {"url": "https://example.com"}
-  }
-}
+MCP Client                    claude-chrome-mcp                    Chrome Extension
+    │                               │                                     │
+    │  POST /mcp (tool call)        │                                     │
+    │──────────────────────────────►│                                     │
+    │                               │  tool_request (stdout)              │
+    │                               │────────────────────────────────────►│
+    │                               │                                     │
+    │                               │         [executes via CDP]          │
+    │                               │                                     │
+    │                               │  tool_response (stdin)              │
+    │                               │◄────────────────────────────────────│
+    │  HTTP Response                │                                     │
+    │◄──────────────────────────────│                                     │
 ```
 
 ### Wire Protocol
 
-Communication with the native host uses length-prefixed JSON:
+Chrome native messaging uses length-prefixed JSON:
 
 ```
 ┌────────────────┬────────────────────────────────────┐
@@ -267,163 +228,90 @@ Communication with the native host uses length-prefixed JSON:
 
 ## Troubleshooting
 
-### "Claude CLI not found"
-
-Ensure Claude Code is installed:
+### Check Installation Status
 
 ```bash
-npm install -g @anthropic-ai/claude-code
-which claude
+claude-chrome-mcp --status
 ```
 
-### "Socket not available"
+### Native Host Not Starting
 
-1. Make sure Chrome is running with the extension
-2. Check socket exists: `ls /tmp/claude-mcp-browser-bridge-*`
-3. Use `--spawn` flag to auto-start the native host:
+1. Ensure Chrome is completely restarted after installation
+2. Check if manifest exists:
+   - Linux: `~/.config/chromium/NativeMessagingHosts/com.anthropic.claude_code_browser_extension.json`
+   - macOS: `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`
+3. Verify wrapper script exists: `~/.local/share/claude-chrome-mcp/`
 
-```bash
-claude-chrome-mcp --spawn
-```
+### Connection Issues
 
-### "Not connected to native host"
-
-The native host may not be running. Use `--spawn` flag to auto-start it:
-
-```bash
-claude-chrome-mcp --spawn
-```
-
-### Chrome Extension Integration
-
-For detailed setup instructions including native messaging configuration, see:
-
-**[Chrome Extension Setup Guide](./CHROME_EXTENSION_SETUP.md)**
-
-This covers:
-- Native messaging manifest installation
-- Platform-specific configuration (Linux, macOS, Windows)
-- NixOS-specific notes
-- Verification and diagnostics
-
-### "No tab available" Error
-
-The extension needs at least one open tab to execute tools:
-
-1. Open Chrome/Chromium
-2. Navigate to any website (e.g., https://example.com)
-3. Ensure the extension is active
-4. Try the tool again
+1. Check if port 3456 is available (or if server chose a different port)
+2. Ensure Chrome extension is installed and enabled
+3. Check Chrome extension logs: `chrome://extensions` → Details → Inspect views
 
 ### Permission Errors
 
-The extension requires permissions for each domain. When you first interact with a new domain, you may need to approve it in Chrome.
+The Chrome extension requires permissions for each domain. When first interacting with a new domain, you may need to approve it in Chrome.
+
+### Custom Extension ID
+
+If using a custom/development version of the Chrome extension:
+
+```bash
+claude-chrome-mcp --install --extension-id YOUR_EXTENSION_ID
+```
 
 ## Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/anthropics/claude-browser-extension
+# Clone and install
+git clone https://github.com/anthropics/claude-chrome-mcp
 cd claude-chrome-mcp
-
-# Install dependencies
 npm install
 
 # Build
 npm run build
 
-# Run in development
-npm run dev
+# Install locally for testing
+npm run install-native-host
 ```
 
-## Testing
+### Project Structure
 
-### Prerequisites
-
-Before testing, ensure the native host is running:
-
-```bash
-# Start the native host in a separate terminal
-claude --chrome-native-host
+```
+src/
+├── cli.ts              # CLI entry point
+├── native-host.ts      # Chrome native messaging protocol
+├── unified-server.ts   # Combined native host + HTTP MCP server
+├── tools.ts            # Tool definitions
+├── install.ts          # Native host manifest installation
+└── index.ts            # Package exports
 ```
 
-You should see:
+## API Reference
+
+### CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `--help, -h` | Show help message |
+| `--install` | Install native host manifest |
+| `--uninstall` | Remove native host manifest |
+| `--status` | Check installation status |
+| `--extension-id <id>` | Custom Chrome extension ID |
+| `--port <port>` | HTTP server port (default: 3456) |
+
+### Programmatic Usage
+
+```typescript
+import { UnifiedServer, installNativeHost } from 'claude-chrome-mcp';
+
+// Install native host
+await installNativeHost({ extensionId: 'custom-id' });
+
+// Or create server programmatically
+const server = new UnifiedServer({ port: 3456 });
+await server.start();
 ```
-[Claude Chrome Native Host] Initializing...
-[Claude Chrome Native Host] Creating socket listener: /tmp/claude-mcp-browser-bridge-<username>
-[Claude Chrome Native Host] Socket server listening for connections
-[Claude Chrome Native Host] Socket permissions set to 0600
-```
-
-### Running Tests
-
-The project includes several test scripts:
-
-#### 1. Simple Connection Test
-
-Tests socket connectivity:
-
-```bash
-node simple-test.js
-```
-
-#### 2. Comprehensive Test Suite
-
-Interactive test suite that tests all major tools:
-
-```bash
-node test-comprehensive.js
-```
-
-This will test:
-- Navigation (`navigate`)
-- Page reading (`read_page`, `get_page_text`)
-- Screenshots (`computer`)
-- Element finding (`find`)
-- Tab management (`tabs_context_mcp`)
-- JavaScript execution (`javascript_tool`)
-- Console messages (`read_console_messages`)
-- Network requests (`read_network_requests`)
-- Scrolling (`computer`)
-
-After running the automated tests, the script enters interactive mode where you can manually test commands.
-
-#### 3. HTTP API Test
-
-Test the HTTP/SSE transport:
-
-```bash
-# Start the HTTP server (in separate terminal)
-node dist/cli.js --http 3456
-
-# Run HTTP tests
-node test-http-api.js
-```
-
-### Troubleshooting Tests
-
-**Socket not found:**
-- Ensure `claude --chrome-native-host` is running
-- Check socket exists: `ls -la /tmp/claude-mcp-browser-bridge-*`
-- Verify Chrome is running with the extension enabled
-
-**Connection timeout:**
-- The Chrome extension must be installed and active
-- The extension needs to connect to the native host first
-- Try opening a new tab or refreshing the extension
-- Check Chrome extension logs (chrome://extensions > Details > Inspect views)
-
-**Tool execution fails:**
-- Verify the extension has permissions for the current domain
-- Check the browser console for errors
-- Ensure you're on a valid webpage (not chrome:// URLs)
-
-### Test Files
-
-- `simple-test.js` - Socket connection diagnostics
-- `test-comprehensive.js` - Full interactive test suite
-- `test-http-api.js` - HTTP/SSE transport tests
-- `test-mcp.js` - Alternative interactive test interface
 
 ## License
 
