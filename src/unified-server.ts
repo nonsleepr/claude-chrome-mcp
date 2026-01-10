@@ -11,7 +11,7 @@
  */
 
 import express, { Request, Response, NextFunction } from 'express';
-import { createServer, Server } from 'net';
+import { createServer } from 'net';
 import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';

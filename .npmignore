@@ -6,7 +6,6 @@ tsconfig.json
 .git/
 .gitignore
 opencode.json
-start-http-server.sh
 
 # Documentation (keep only essential)
 AGENTS.md

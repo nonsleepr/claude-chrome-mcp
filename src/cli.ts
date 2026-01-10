@@ -40,6 +40,7 @@ function parseArgs(): CliOptions {
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    const nextArg = args[i + 1];
 
     switch (arg) {
       case '--help':
@@ -60,23 +61,21 @@ function parseArgs(): CliOptions {
         break;
 
       case '--extension-id':
-        if (args[i + 1] && !args[i + 1].startsWith('-')) {
-          options.extensionId = args[i + 1];
-          i++;
-        } else {
+        if (!nextArg || nextArg.startsWith('-')) {
           console.error('Error: --extension-id requires a value');
           process.exit(1);
         }
+        options.extensionId = nextArg;
+        i++;
         break;
 
       case '--port':
-        if (args[i + 1] && /^\d+$/.test(args[i + 1])) {
-          options.port = parseInt(args[i + 1], 10);
-          i++;
-        } else {
+        if (!nextArg || !/^\d+$/.test(nextArg)) {
           console.error('Error: --port requires a numeric value');
           process.exit(1);
         }
+        options.port = parseInt(nextArg, 10);
+        i++;
         break;
 
       default:
