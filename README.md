@@ -31,6 +31,8 @@ Visit [claude.com/chrome](https://claude.com/chrome) to install the official Cla
 
 ### 2. Install and Configure MCP Server
 
+#### Option A: Install from npm (Public Registry)
+
 ```bash
 # Install globally
 npm install -g claude-chrome-mcp
@@ -40,6 +42,41 @@ claude-chrome-mcp --install
 
 # Restart Chrome completely (required for native host registration)
 ```
+
+#### Option B: Install from Git URL (Bun - Recommended)
+
+```bash
+# Install globally with Bun (works with any git URL)
+bun install -g git+https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
+
+# Register as Chrome native messaging host
+claude-chrome-mcp --install
+
+# Restart Chrome completely
+```
+
+#### Option C: Install from Git URL (npm - via tarball)
+
+Due to npm's limitations with git dependencies, you'll need to create a tarball first:
+
+```bash
+# Clone and build
+git clone https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
+cd claude-chrome-mcp
+npm install
+npm run build
+npm pack
+
+# Install the tarball globally
+npm install -g ./claude-chrome-mcp-*.tgz
+
+# Register as Chrome native messaging host
+claude-chrome-mcp --install
+
+# Restart Chrome completely
+```
+
+**Note**: npm has known issues with git URL installations. We recommend using Bun for direct git URL installations, or installing from npm registry when available.
 
 That's it! Chrome will now automatically launch the MCP server when the extension connects.
 
@@ -85,11 +122,7 @@ Refer to your client's documentation. Most support HTTP transport with this conf
 }
 ```
 
-Or run directly with npx (no installation needed):
-
-```bash
-npx claude-chrome-mcp --install
-```
+**Note**: For private installations (from git URLs), the native host must be installed globally first using one of the installation methods above. npx/bunx won't work for installing the native host from git URLs.
 
 ## Prerequisites
 
