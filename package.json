@@ -17,8 +17,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
-    "prepack": "tsc",
-    "postinstall": "tsc 2>/dev/null || true"
+    "prepare": "tsc"
   },
   "keywords": [
     "mcp",
