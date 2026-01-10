@@ -55,9 +55,9 @@ export class NativeHostClient extends EventEmitter {
   private getDefaultSocketPath(): string {
     const username = process.env.USER || process.env.USERNAME || 'unknown';
     if (process.platform === 'win32') {
-      return `\\\\.\\pipe\\claude-code-mcp-${username}`;
+      return `\\\\.\\pipe\\claude-mcp-browser-bridge-${username}`;
     }
-    return `/tmp/claude-code-mcp-${username}.sock`;
+    return `/tmp/claude-mcp-browser-bridge-${username}`;
   }
 
   /**
@@ -120,14 +120,29 @@ export class NativeHostClient extends EventEmitter {
     while (Date.now() - start < timeout) {
       if (process.platform !== 'win32') {
         if (fs.existsSync(this.socketPath)) {
-          return;
+          // Socket file exists, now verify it's accepting connections
+          try {
+            const testSocket = net.createConnection(this.socketPath);
+            await new Promise<void>((resolve, reject) => {
+              testSocket.on('connect', () => {
+                testSocket.destroy();
+                resolve();
+              });
+              testSocket.on('error', reject);
+              setTimeout(() => reject(new Error('Test connection timeout')), 1000);
+            });
+            // Successfully connected - socket is ready
+            return;
+          } catch (err) {
+            // Socket exists but not ready yet, continue waiting
+          }
         }
       } else {
         // On Windows, just wait a bit
         await new Promise(resolve => setTimeout(resolve, 500));
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
     throw new Error(`Socket ${this.socketPath} not available after ${timeout}ms`);
   }
@@ -143,23 +158,42 @@ export class NativeHostClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.socket = net.createConnection(this.socketPath);
 
-      this.socket.on('connect', () => {
+      const onConnect = () => {
         console.error(`[NativeHostClient] Connected to ${this.socketPath}`);
         this.connected = true;
+        
+        // Remove the one-time error handler
+        this.socket?.removeListener('error', onError);
+        
+        // Add permanent error handler for runtime errors
+        this.socket?.on('error', (err) => {
+          console.error('[NativeHostClient] Socket error:', err);
+          this.emit('error', err);
+        });
+        
         this.emit('connected');
         resolve();
-      });
+      };
+
+      const onError = (err: Error) => {
+        console.error('[NativeHostClient] Connection failed:', err);
+        
+        // Clean up listeners
+        this.socket?.removeListener('connect', onConnect);
+        
+        // Only emit error event if there are listeners to prevent unhandled error
+        if (this.listenerCount('error') > 0) {
+          this.emit('error', err);
+        }
+        
+        reject(err);
+      };
+
+      this.socket.once('connect', onConnect);
+      this.socket.once('error', onError);
 
       this.socket.on('data', (data) => {
         this.handleData(data);
-      });
-
-      this.socket.on('error', (err) => {
-        console.error('[NativeHostClient] Socket error:', err);
-        this.emit('error', err);
-        if (!this.connected) {
-          reject(err);
-        }
       });
 
       this.socket.on('close', () => {
