@@ -4,7 +4,7 @@
  * Tests the configuration logic without requiring Chrome extension
  */
 
-import { UnifiedServer } from './dist/unified-server.js';
+import { UnifiedServer } from '../dist/unified-server.js';
 import http from 'http';
 
 // Suppress stderr during tests (native host spams disconnected messages)

@@ -17,14 +17,13 @@ rm -rf dist/           # Clean build artifacts
 
 ### Test Commands
 ```bash
-# No formal unit tests currently - project uses manual integration tests
-node test-comprehensive.js    # Full interactive test suite (RECOMMENDED)
-node simple-test.js           # Quick socket connection test
-node test-http-api.js         # HTTP/SSE transport test
-node test-mcp.js             # Alternative interactive test
+# Unit tests
+npm test                      # Run all unit tests
+npm run test:auth             # Test authentication and CORS
+npm run test:runtime          # Test runtime detection
 
-# Run a "single test" by selecting specific tool in interactive mode
-# The test scripts enter interactive mode after automated tests
+# Manual integration testing (requires Chrome extension)
+# See CONTRIBUTING.md for manual testing instructions
 ```
 
 ### Start Commands
@@ -180,7 +179,7 @@ claude --chrome-native-host
 
 ### Debugging Issues
 - Check socket exists: `ls -la /tmp/claude-mcp-browser-bridge-*`
-- Test connection: `node simple-test.js`
+- Run unit tests: `npm test`
 - Monitor native host stderr output
 - Check Chrome extension console (chrome://extensions)
 
@@ -201,7 +200,7 @@ claude --chrome-native-host
 When working on this project:
 1. ✅ Start native host: `claude --chrome-native-host`
 2. ✅ Build if needed: `npm run build`
-3. ✅ Test changes: `node test-comprehensive.js`
+3. ✅ Test changes: `npm test`
 4. ✅ Use `.js` extensions in imports (ESM requirement)
 5. ✅ Follow TypeScript strict mode (explicit types)
 6. ✅ Log to stderr: `console.error('[Component] message')`

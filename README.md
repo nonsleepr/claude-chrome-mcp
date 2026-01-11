@@ -147,7 +147,7 @@ npm run build
 
 **Test**:
 ```bash
-node test-comprehensive.js
+npm test
 ```
 
 See [AGENTS.md](./AGENTS.md) for development guidelines.
