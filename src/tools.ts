@@ -142,13 +142,16 @@ export const getPageTextTool: ToolDefinition = {
 
 export const tabsCreateTool: ToolDefinition = {
   name: 'tabs_create',
-  description: 'Creates a new empty tab in the current tab group',
-  inputSchema: z.object({}),
+  description: 'Creates a new tab in the MCP tab group. Optionally navigates to a URL immediately after creation.',
+  inputSchema: z.object({
+    url: z.string().optional()
+      .describe('Optional URL to navigate to after creating the tab. Can be provided with or without protocol (defaults to https://). If not provided, creates an empty tab.'),
+  }),
 };
 
 export const tabsContextTool: ToolDefinition = {
   name: 'tabs_context',
-  description: 'Get context information about all tabs in the current tab group',
+  description: 'Get context information about all tabs in the MCP tab group. Automatically creates the group with an empty tab if it doesn\'t exist. Returns available tab IDs that can be used with other browser tools.',
   inputSchema: z.object({}),
 };
 

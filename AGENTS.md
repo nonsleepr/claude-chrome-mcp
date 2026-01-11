@@ -173,8 +173,8 @@ For more on MCP server instructions, see: https://blog.modelcontextprotocol.io/p
 | `find` | Search for elements by text (use `query` param) |
 | `read_page` | Get DOM with element references |
 | `get_page_text` | Extract visible text content |
-| `tabs_context` | List tabs in browser tab group (auto-creates if needed) |
-| `tabs_create` | Create new tab with optional URL (navigates automatically if URL provided) |
+| `tabs_context` | List tabs (auto-creates MCP group if needed) |
+| `tabs_create` | Create new tab, optionally navigate to URL |
 | `resize_window` | Resize browser window |
 | `read_console_messages` | Read browser console |
 | `read_network_requests` | Read network activity |
@@ -182,7 +182,7 @@ For more on MCP server instructions, see: https://blog.modelcontextprotocol.io/p
 | `gif_creator` | Record actions as GIF |
 | `javascript_tool` | Execute JS in page (use `text` param) |
 
-**Note**: Tab group initialization is automatic - no need to call `tabs_context` explicitly before using other tools.
+**Note**: The MCP tab group is automatically created and managed by the extension. Clients only need to track tab IDs - the server handles group creation transparently.
 
 ## Testing Prerequisites
 
