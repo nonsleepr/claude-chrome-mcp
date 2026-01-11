@@ -5,8 +5,8 @@
  * Wire format: [4 bytes length (LE uint32)][N bytes JSON (UTF-8)]
  *
  * Message flow:
- * - Chrome sends: ping, get_status, tool_response, mcp_connected, mcp_disconnected, get_mcp_endpoint
- * - We send: pong, status_response, tool_request, mcp_endpoint
+ * - Chrome sends: ping, get_status, tool_response, mcp_connected, mcp_disconnected
+ * - We send: pong, status_response, tool_request
  */
 import { EventEmitter } from 'events';
 const MAX_MESSAGE_SIZE = 1024 * 1024; // 1 MB
@@ -94,12 +94,6 @@ export class NativeHost extends EventEmitter {
         this.send({ type: 'status_response', native_host_version: version });
     }
     /**
-     * Send the MCP endpoint URL to Chrome
-     */
-    sendMcpEndpoint(url) {
-        this.send({ type: 'mcp_endpoint', url });
-    }
-    /**
      * Notify Chrome that an MCP client connected
      */
     sendMcpConnected() {
@@ -179,9 +173,6 @@ export class NativeHost extends EventEmitter {
                 break;
             case 'mcp_disconnected':
                 this.emit('mcp_disconnected');
-                break;
-            case 'get_mcp_endpoint':
-                this.emit('get_mcp_endpoint');
                 break;
             default:
                 console.error(`[NativeHost] Unknown message type: ${message.type}`);

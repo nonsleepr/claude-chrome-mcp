@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { NativeHost, ToolResponseMessage, TabContext } from './native-host.js';
 import { allTools } from './tools.js';
 
-const VERSION = '2.0.1';
+const VERSION = '2.1.0';
 const DEFAULT_PORT = 3456;
 const TOOL_TIMEOUT_MS = 60000; // 60 seconds
 
@@ -84,9 +84,27 @@ export class UnifiedServer {
    * Start the unified server
    */
   async start(): Promise<void> {
-    // Find available port
+    // Get configured port (no fallback)
     const preferredPort = this.options.port ?? DEFAULT_PORT;
-    this.actualPort = await this.findAvailablePort(preferredPort);
+    
+    try {
+      this.actualPort = await this.findAvailablePort(preferredPort);
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[UnifiedServer] ERROR: Failed to bind to port ${preferredPort}`);
+      console.error(`[UnifiedServer] ${errMsg}`);
+      console.error('');
+      console.error('To resolve this:');
+      console.error('  1. Stop the process using the port, or');
+      console.error('  2. Reinstall with a different port:');
+      console.error(`     claude-chrome-mcp --install --port <different-port> --auth-token "your-token"`);
+      console.error('');
+      console.error('To check what\'s using the port:');
+      console.error(`  • Linux/Mac: lsof -i :${preferredPort}`);
+      console.error(`  • Windows: netstat -ano | findstr :${preferredPort}`);
+      console.error('');
+      throw new Error(`Port ${preferredPort} is already in use`);
+    }
 
     // Start HTTP server
     await this.startHttpServer();
@@ -117,20 +135,18 @@ export class UnifiedServer {
   }
 
   /**
-   * Find an available port, starting with preferred port
+   * Verify the preferred port is available (no fallback)
    */
   private async findAvailablePort(preferred: number): Promise<number> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const testServer = createServer();
       
-      testServer.once('error', () => {
-        // Preferred port is busy, let OS assign one
-        const fallbackServer = createServer();
-        fallbackServer.listen(0, '127.0.0.1', () => {
-          const addr = fallbackServer.address();
-          const port = typeof addr === 'object' && addr ? addr.port : 0;
-          fallbackServer.close(() => resolve(port));
-        });
+      testServer.once('error', (err: NodeJS.ErrnoException) => {
+        // Port is busy - fail immediately with no fallback
+        const reason = err.code === 'EADDRINUSE' 
+          ? 'The port is already in use by another process.'
+          : `Failed to bind to port: ${err.message}`;
+        reject(new Error(reason));
       });
 
       testServer.listen(preferred, '127.0.0.1', () => {
@@ -172,11 +188,6 @@ export class UnifiedServer {
           });
         }
       }
-    });
-
-    // Handle MCP endpoint query from Chrome
-    this.nativeHost.on('get_mcp_endpoint', () => {
-      this.nativeHost.sendMcpEndpoint(`http://localhost:${this.actualPort}/mcp`);
     });
 
     // Handle ping (respond with pong for health check)

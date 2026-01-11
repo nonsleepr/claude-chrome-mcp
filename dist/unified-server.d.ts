@@ -41,7 +41,7 @@ export declare class UnifiedServer {
      */
     getPort(): number;
     /**
-     * Find an available port, starting with preferred port
+     * Verify the preferred port is available (no fallback)
      */
     private findAvailablePort;
     /**

@@ -5,8 +5,8 @@
  * Wire format: [4 bytes length (LE uint32)][N bytes JSON (UTF-8)]
  * 
  * Message flow:
- * - Chrome sends: ping, get_status, tool_response, mcp_connected, mcp_disconnected, get_mcp_endpoint
- * - We send: pong, status_response, tool_request, mcp_endpoint
+ * - Chrome sends: ping, get_status, tool_response, mcp_connected, mcp_disconnected
+ * - We send: pong, status_response, tool_request
  */
 
 import { EventEmitter } from 'events';
@@ -51,10 +51,6 @@ export interface GetStatusMessage {
   type: 'get_status';
 }
 
-export interface GetMcpEndpointMessage {
-  type: 'get_mcp_endpoint';
-}
-
 export type ChromeMessage =
   | ToolResponseMessage
   | PingMessage
@@ -62,8 +58,7 @@ export type ChromeMessage =
   | GetStatusMessage
   | StatusResponseMessage
   | McpConnectedMessage
-  | McpDisconnectedMessage
-  | GetMcpEndpointMessage;
+  | McpDisconnectedMessage;
 
 // Tab context returned with tool responses
 export interface TabContext {
@@ -90,7 +85,6 @@ export interface NativeHostEvents {
   'status_response': (message: StatusResponseMessage) => void;
   'mcp_connected': () => void;
   'mcp_disconnected': () => void;
-  'get_mcp_endpoint': () => void;
   'close': () => void;
   'error': (error: Error) => void;
 }
@@ -193,13 +187,6 @@ export class NativeHost extends EventEmitter {
   }
 
   /**
-   * Send the MCP endpoint URL to Chrome
-   */
-  sendMcpEndpoint(url: string): void {
-    this.send({ type: 'mcp_endpoint', url });
-  }
-
-  /**
    * Notify Chrome that an MCP client connected
    */
   sendMcpConnected(): void {
@@ -292,10 +279,6 @@ export class NativeHost extends EventEmitter {
 
       case 'mcp_disconnected':
         this.emit('mcp_disconnected');
-        break;
-
-      case 'get_mcp_endpoint':
-        this.emit('get_mcp_endpoint');
         break;
 
       default:

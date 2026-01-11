@@ -10,12 +10,23 @@ Install from [claude.com/chrome](https://claude.com/chrome)
 
 ### 2. Install MCP Server
 
+**Option A: Install with Bun (Recommended)**
 ```bash
-# Install with Bun (recommended)
 bun install -g git+https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
 
-# Or from npm (if published)
-npm install -g claude-chrome-mcp
+# Register native host
+claude-chrome-mcp --install
+
+# Restart Chrome completely
+```
+
+**Option B: Clone and Install**
+```bash
+git clone https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
+cd claude-chrome-mcp
+npm install
+npm run build
+npm install -g .
 
 # Register native host
 claude-chrome-mcp --install
@@ -68,6 +79,14 @@ Then configure your MCP client to send the token:
 }
 ```
 
+**Port Configuration**:
+- The configured port must be available when the native host starts
+- If the port is busy, the service will fail with an error message
+- To use a different port, reinstall with `--port <different-port>`
+- Check what's using a port:
+  - Linux/Mac: `lsof -i :3456`
+  - Windows: `netstat -ano | findstr :3456`
+
 ## Available Tools
 
 - `navigate` - Navigate to URLs, back/forward
@@ -101,6 +120,12 @@ claude-chrome-mcp --help                 # Show help
 ```bash
 claude-chrome-mcp --status
 ```
+
+**Port already in use**:
+If you see an error about the port being busy:
+1. Find what's using the port: `lsof -i :3456` (Mac/Linux) or `netstat -ano | findstr :3456` (Windows)
+2. Stop the conflicting process, or
+3. Reinstall with a different port: `claude-chrome-mcp --install --port 8080 --auth-token "token"`
 
 **Connection issues**:
 1. Restart Chrome completely after installation

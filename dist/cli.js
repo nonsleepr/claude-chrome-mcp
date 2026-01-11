@@ -98,7 +98,7 @@ OPTIONS
   --uninstall             Remove native host manifest
   --status                Check installation status
   --extension-id <id>     Custom Chrome extension ID (default: official Claude extension)
-  --port <port>           HTTP server port (default: 3456)
+  --port <port>           HTTP server port (default: 3456, must be available)
   --auth-token <token>    Require Bearer token authentication (default: none)
   --cors-origins <list>   Comma-separated list of allowed CORS origins (default: localhost only)
 
@@ -143,6 +143,13 @@ SECURITY
   Port:
     Specify a custom port during installation:
       claude-chrome-mcp --install --port 8080
+    
+    ⚠️  The configured port must be available when the native host starts.
+    If the port is busy, the service will fail to start with an error message.
+    
+    To check what's using a port:
+      • Linux/Mac: lsof -i :3456
+      • Windows: netstat -ano | findstr :3456
 
   To update settings:
     Simply reinstall with new parameters - installation will overwrite existing configuration.
