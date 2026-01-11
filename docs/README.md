@@ -4,13 +4,12 @@ This directory contains technical documentation for developers working with or e
 
 ## Architecture Overview
 
-`claude-chrome-mcp` is a self-contained MCP server that acts as a native messaging host for the [Claude Browser Extension](https://claude.com/chrome).
+`claude-chrome-mcp` is a self-contained MCP server that acts as a native messaging host for the [Claude Browser Extension](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn).
 
-```
-┌─────────────┐         ┌──────────────────────┐         ┌─────────────────┐
-│ MCP Client  │ ◄─HTTP─►│ claude-chrome-mcp    │◄─stdio─►│ Chrome Extension│
-│ (any)       │         │ (Native Host + HTTP) │         │ (Browser Tools) │
-└─────────────┘         └──────────────────────┘         └─────────────────┘
+```mermaid
+graph LR
+    A[MCP Client<br/>any] <-->|HTTP| B[claude-chrome-mcp<br/>Native Host + HTTP]
+    B <-->|stdio| C[Chrome Extension<br/>Browser Tools]
 ```
 
 ### Key Components
@@ -39,12 +38,12 @@ This directory contains technical documentation for developers working with or e
 
 ### Chrome Native Messaging
 
-```
-┌────────────────┬────────────────────────────────────┐
-│  Length (4B)   │  JSON Payload                      │
-│  Little-endian │  UTF-8 encoded                     │
-└────────────────┴────────────────────────────────────┘
-```
+Messages consist of two parts:
+
+| Component | Size | Format |
+|-----------|------|--------|
+| Length | 4 bytes | Little-endian unsigned integer |
+| Payload | N bytes | UTF-8 encoded JSON |
 
 ### HTTP/MCP
 

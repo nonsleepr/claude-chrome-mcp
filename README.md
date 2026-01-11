@@ -6,7 +6,7 @@ MCP server for browser automation via the Claude Chrome Extension.
 
 ### 1. Install Claude Browser Extension
 
-Install from [claude.com/chrome](https://claude.com/chrome)
+Install from [claude.com/chrome](https://claude.com/chrome) or directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn)
 
 ### 2. Install MCP Server
 
