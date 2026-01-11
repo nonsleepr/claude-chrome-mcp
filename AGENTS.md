@@ -18,9 +18,13 @@ rm -rf dist/           # Clean build artifacts
 ### Test Commands
 ```bash
 # Unit tests
-npm test                      # Run all unit tests
-npm run test:auth             # Test authentication and CORS
-npm run test:runtime          # Test runtime detection
+npm test                          # Run all unit tests
+npm run test:auth                 # Test authentication and CORS
+npm run test:runtime              # Test runtime detection
+node test/instructions.test.js    # Test server instructions
+
+# Run a single test file
+node test/<test-name>.test.js     # Run specific test
 
 # Manual integration testing (requires Chrome extension)
 # See CONTRIBUTING.md for manual testing instructions
@@ -121,12 +125,43 @@ MCP Client → claude-chrome-mcp → Native Host Socket → Chrome Extension →
 ```
 
 ### Key Files
-- **src/server.ts** - MCP server (registers tools, translates protocols)
+- **src/unified-server.ts** - MCP server (registers tools, translates protocols)
 - **src/native-client.ts** - Socket client (length-prefixed JSON protocol)
 - **src/tools.ts** - Tool definitions with Zod schemas (14 MCP-compatible tools)
+- **src/instructions.ts** - Server instructions (delivered via MCP initialize response)
 - **src/http-server.ts** - HTTP/SSE transport with session management
 - **src/cli.ts** - CLI entry point (stdio/HTTP transports)
 - **src/index.ts** - Package exports
+
+### Server Instructions
+
+The MCP server includes built-in instructions that are automatically delivered in the `initialize` response to help AI models use browser automation tools effectively.
+
+**Location**: `src/instructions.ts` exports `SERVER_INSTRUCTIONS` constant
+
+**Integration**: Passed to `McpServer` constructor in `unified-server.ts` via the `options.instructions` parameter
+
+**Content Guidelines** (~600 words, comprehensive):
+- Focus on **cross-tool relationships** and workflows (e.g., find → computer interaction)
+- Document **operational patterns** (GIF recording, console debugging with pattern filtering)
+- Specify **constraints and limitations** (60-second timeouts, alert/dialog blocking)
+- Include **critical warnings** (never trigger alerts, avoid rabbit holes)
+- Explain **auto-initialization** (tab groups are created automatically)
+- Provide **performance tips** (batch operations, use specific selectors)
+
+**What NOT to include**:
+- ❌ Tool descriptions (already in tool schemas)
+- ❌ Marketing language or superiority claims
+- ❌ General behavioral instructions unrelated to tools
+- ❌ Lengthy manual-style documentation
+
+**Testing**: Unit test at `test/instructions.test.js` validates:
+- Instructions exist and are comprehensive (500+ words)
+- Contains all critical topics (GIF, console, alerts, tabs, timeouts, workflows)
+- Includes specific best practices and warnings
+- References all key tools
+
+For more on MCP server instructions, see: https://blog.modelcontextprotocol.io/posts/2025-11-03-using-server-instructions/
 
 ## Available Tools (14 MCP-compatible)
 

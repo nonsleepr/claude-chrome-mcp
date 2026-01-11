@@ -94,15 +94,6 @@ export declare class UnifiedServer {
      */
     private executeTool;
     /**
-     * Handle tabs_create when URL is provided
-     * Creates the tab and immediately navigates to the URL
-     */
-    private handleTabsCreateWithUrl;
-    /**
-     * Transform tool arguments to match Chrome extension expectations
-     */
-    private transformArgs;
-    /**
      * Format tool response from Chrome into MCP content format
      */
     private formatToolResponse;

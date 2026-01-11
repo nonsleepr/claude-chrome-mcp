@@ -104,6 +104,21 @@ Then configure your MCP client to send the token:
 - `gif_creator` - Record as GIF
 - `javascript_tool` - Execute JS
 
+## Server Instructions
+
+This MCP server includes built-in instructions that help AI models use the browser automation tools effectively. These instructions are automatically delivered via the MCP protocol's `initialize` response and cover:
+
+- **GIF Recording Best Practices** - Frame capture timing and meaningful file naming
+- **Console Debugging** - Using pattern filtering to reduce verbose output
+- **Critical Warnings** - Avoiding browser alerts and dialogs that freeze automation
+- **Tab Management** - Automatic initialization and proper tab ID handling
+- **Error Handling** - Timeout behavior and recovery strategies
+- **Cross-Tool Workflows** - Effective patterns for combining tools (e.g., find → computer, read_page → form_input)
+
+The instructions are comprehensive (~600 words) and focus on tool relationships, operational patterns, and constraints that aren't conveyed by tool descriptions alone.
+
+For more information about MCP server instructions, see the [MCP blog post](https://blog.modelcontextprotocol.io/posts/2025-11-03-using-server-instructions/).
+
 ## CLI Commands
 
 ```bash

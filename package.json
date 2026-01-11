@@ -13,7 +13,7 @@
     "start": "node dist/cli.js",
     "prepare": "node scripts/build.cjs",
     "test": "npm run test:unit",
-    "test:unit": "node test/auth-cors.test.js && node test/runtime-detection.test.js",
+    "test:unit": "node test/auth-cors.test.js && node test/runtime-detection.test.js && node test/instructions.test.js",
     "test:auth": "node test/auth-cors.test.js",
     "test:runtime": "node test/runtime-detection.test.js"
   },
