@@ -6,11 +6,14 @@
  */
 
 // Main server components
-export { UnifiedServer, UnifiedServerOptions } from './unified-server.js';
-export { NativeHost, ToolResponse, TabContext, ChromeMessage } from './native-host.js';
+export { McpHttpServer, McpServerOptions, UnifiedServer, UnifiedServerOptions } from './mcp-server.js';
+export { ChromeProtocol, NativeHost, ToolResponse, TabContext, ChromeMessage } from './chrome-protocol.js';
 
 // Tool definitions
 export { allTools, toolsByName, ToolDefinition } from './tools.js';
+
+// Constants
+export * from './constants.js';
 
 // Installation utilities
 export { 

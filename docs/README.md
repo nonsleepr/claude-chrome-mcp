@@ -1,146 +1,127 @@
 # Developer Documentation
 
-This directory contains technical documentation for developers working with or extending `claude-chrome-mcp`.
+Welcome to the `claude-chrome-mcp` developer documentation.
 
-## Architecture Overview
+## Documentation Overview
 
-`claude-chrome-mcp` is a self-contained MCP server that acts as a native messaging host for the [Claude Browser Extension](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn).
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Technical architecture, components, and wire protocols |
+| [DEVELOPMENT.md](./DEVELOPMENT.md) | Development setup, workflows, and coding guidelines |
+| [TESTING.md](./TESTING.md) | Testing practices, running tests, and writing new tests |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Common issues and solutions |
 
-```mermaid
-graph LR
-    A[MCP Client<br/>any] <-->|HTTP| B[claude-chrome-mcp<br/>Native Host + HTTP]
-    B <-->|stdio| C[Chrome Extension<br/>Browser Tools]
+## Quick Links
+
+### For Users
+- [Main README](../README.md) - Installation and quick start
+- [Troubleshooting Guide](./TROUBLESHOOTING.md) - Solve common issues
+
+### For Developers
+- [Development Guide](./DEVELOPMENT.md) - Setup and workflow
+- [Architecture](./ARCHITECTURE.md) - Understanding the codebase
+- [Testing Guide](./TESTING.md) - Running and writing tests
+
+### For Contributors
+- [Contributing Guidelines](../CONTRIBUTING.md) - How to contribute
+- [AI Agent Guidelines](../AGENTS.md) - For AI assistants working on this codebase
+
+## Project Overview
+
+`claude-chrome-mcp` is an MCP (Model Context Protocol) server that enables browser automation through the Claude Chrome Extension. It acts as a bridge between MCP clients and the Chrome extension's browser automation tools.
+
+### Key Features
+
+- 14 browser automation tools (navigation, interaction, debugging)
+- HTTP transport with session management
+- Authentication and CORS security
+- Cross-platform support (Linux, macOS, Windows)
+- Bun and Node.js runtime support
+
+### Architecture at a Glance
+
+```
+MCP Client → HTTP → MCP Server → Chrome Protocol → Chrome Extension → Browser
 ```
 
-### Key Components
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed information.
 
-1. **Native Host** (`src/native-host.ts`)
-   - Implements Chrome native messaging protocol
-   - Reads/writes length-prefixed JSON on stdin/stdout
-   - Launched automatically by Chrome when extension connects
+## Getting Started
 
-2. **HTTP Server** (`src/unified-server.ts`)
-   - Exposes MCP tools via HTTP endpoint `/mcp`
-   - Handles multiple concurrent client connections
-   - Routes requests to Chrome extension via native host
+### 1. Read the Architecture
 
-3. **Tool Definitions** (`src/tools.ts`)
-   - 14 browser automation tools with Zod schemas
-   - MCP-compliant tool registration
-   - Input validation and type safety
+Start with [ARCHITECTURE.md](./ARCHITECTURE.md) to understand:
+- How components interact
+- Wire protocol details
+- Message flow
+- Security model
 
-4. **Installation** (`src/install.ts`)
-   - Creates native messaging manifest
-   - Generates wrapper script
-   - Platform-aware (Linux, macOS, Windows)
+### 2. Set Up Development Environment
 
-## Wire Protocol
+Follow [DEVELOPMENT.md](./DEVELOPMENT.md) to:
+- Install prerequisites
+- Build the project
+- Run tests
+- Install for local testing
 
-### Chrome Native Messaging
+### 3. Make Changes
 
-Messages consist of two parts:
+- Follow coding guidelines in [AGENTS.md](../AGENTS.md)
+- Write tests as described in [TESTING.md](./TESTING.md)
+- Test your changes thoroughly
 
-| Component | Size | Format |
-|-----------|------|--------|
-| Length | 4 bytes | Little-endian unsigned integer |
-| Payload | N bytes | UTF-8 encoded JSON |
+### 4. Contribute
 
-### HTTP/MCP
+- Read [CONTRIBUTING.md](../CONTRIBUTING.md)
+- Submit pull requests
+- Respond to reviews
 
-Standard HTTP POST requests to `/mcp` endpoint with JSON-RPC 2.0 format.
-
-## Available Tools
-
-| Category | Tools |
-|----------|-------|
-| **Navigation** | navigate |
-| **Interaction** | computer, form_input, find |
-| **Content** | read_page, get_page_text |
-| **Tab Management** | tabs_context, tabs_create, resize_window |
-| **Debugging** | read_console_messages, read_network_requests |
-| **Media** | upload_image, gif_creator |
-| **Code Execution** | javascript_tool |
-
-## Development
+## Common Tasks
 
 ### Building
-
 ```bash
-npm install
-npm run build
+npm run build     # Compile TypeScript
+npm run dev       # Watch mode
 ```
 
 ### Testing
-
 ```bash
-# Install for local testing
-npm run install-native-host
-
-# Check status
-npm run status
-
-# Restart Chrome and test with an MCP client
+npm test          # Run all tests
+npm run test:auth # Test authentication
 ```
 
-### Code Style
+### Installing Locally
+```bash
+claude-chrome-mcp --install
+```
 
-See [AGENTS.md](../AGENTS.md) for detailed coding standards:
-- TypeScript strict mode
-- ESM imports with `.js` extensions
-- Zod schemas for validation
-- JSDoc comments for public APIs
+### Debugging
+See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for debugging tips.
 
-## Installation Workflow
+## Project Structure
 
-1. User runs: `claude-chrome-mcp --install`
-2. Script creates:
-   - Wrapper script at `~/.local/share/claude-chrome-mcp/wrapper.sh`
-   - Native messaging manifest in browser's config directory
-3. User restarts Chrome
-4. Extension connects → Chrome launches wrapper → wrapper starts `claude-chrome-mcp`
-5. Native host accepts extension connection on stdin/stdout
-6. HTTP server starts on port 3456
-7. MCP clients can connect
+```
+claude-chrome-mcp/
+├── src/
+│   ├── cli.ts              # CLI entry point
+│   ├── mcp-server.ts       # MCP protocol server
+│   ├── chrome-protocol.ts  # Chrome native messaging
+│   ├── tools.ts            # Tool definitions
+│   ├── instructions.ts     # Server instructions
+│   ├── constants.ts        # Shared constants
+│   ├── index.ts            # Package exports
+│   └── install/            # Installation utilities
+├── test/                   # Test suite
+├── docs/                   # This documentation
+└── scripts/                # Build scripts
+```
 
-## Platform Support
+## Help & Support
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| Linux | ✅ Tested | Uses `~/.config/google-chrome/` or `chromium/` |
-| macOS | ✅ Supported | Uses `~/Library/Application Support/` |
-| Windows | ✅ Supported | Uses named pipes instead of stdin/stdout |
+- **Bug Reports**: [GitHub Issues](https://github.com/anthropics/claude-chrome-mcp/issues)
+- **Feature Requests**: [GitHub Issues](https://github.com/anthropics/claude-chrome-mcp/issues)
+- **Questions**: [GitHub Discussions](https://github.com/anthropics/claude-chrome-mcp/discussions)
 
-## Security
+## License
 
-- HTTP server binds to `127.0.0.1` (localhost only)
-- Native messaging manifest restricts to specific extension ID
-- Wrapper script uses absolute paths
-- No external network access required
-
-## Contributing
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for:
-- Development setup
-- Coding guidelines
-- Pull request process
-- Areas for contribution
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Native host not starting**
-   - Verify wrapper script is executable
-   - Check Chrome extension console for errors
-   - Ensure Chrome is fully restarted after installation
-
-2. **Connection refused**
-   - Port 3456 may be in use
-   - Check if native host process is running
-
-3. **Tool execution fails**
-   - Extension must be active
-   - Browser must have required permissions for domain
-   - Tab must be open with accessible page
-
-For more help, see main [README.md](../README.md) troubleshooting section.
+MIT License - see [LICENSE](../LICENSE)

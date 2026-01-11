@@ -1,5 +1,5 @@
 /**
- * Unified Server - Native Host + MCP HTTP Server
+ * MCP Server - HTTP Server + Chrome Protocol Bridge
  * 
  * Single process that:
  * 1. Acts as Chrome's native messaging host (stdin/stdout)
@@ -18,15 +18,12 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { IncomingMessage, ServerResponse, Server as HttpServer } from 'http';
 import { z } from 'zod';
 
-import { NativeHost, ToolResponseMessage, TabContext } from './native-host.js';
+import { ChromeProtocol, ToolResponseMessage, TabContext } from './chrome-protocol.js';
 import { allTools } from './tools.js';
 import { SERVER_INSTRUCTIONS } from './instructions.js';
+import { VERSION, DEFAULT_PORT, DEFAULT_HOST, TOOL_TIMEOUT_MS } from './constants.js';
 
-const VERSION = '2.1.0';
-const DEFAULT_PORT = 3456;
-const TOOL_TIMEOUT_MS = 60000; // 60 seconds
-
-export interface UnifiedServerOptions {
+export interface McpServerOptions {
   port?: number;
   host?: string;
   authToken?: string;
@@ -51,8 +48,11 @@ type ImageContent = { type: 'image'; data: string; mimeType: string };
 type McpContent = TextContent | ImageContent;
 type ToolResult = { content: McpContent[] };
 
-export class UnifiedServer {
-  private nativeHost: NativeHost;
+// Legacy export for backward compatibility
+export type UnifiedServerOptions = McpServerOptions;
+
+export class McpHttpServer {
+  private chromeProtocol: ChromeProtocol;
   private app: express.Application;
   private httpServer: HttpServer | null = null;
   private mcpServer: McpServer;
@@ -60,11 +60,11 @@ export class UnifiedServer {
   private pendingToolRequests = new Map<string, PendingToolRequest>();
   private requestId = 0;
   private actualPort = 0;
-  private options: UnifiedServerOptions;
+  private options: McpServerOptions;
 
-  constructor(options: UnifiedServerOptions = {}) {
+  constructor(options: McpServerOptions = {}) {
     this.options = options;
-    this.nativeHost = new NativeHost();
+    this.chromeProtocol = new ChromeProtocol();
     this.app = express();
     
     // Initialize MCP server
@@ -78,13 +78,13 @@ export class UnifiedServer {
       }
     );
 
-    this.setupNativeHostHandlers();
+    this.setupChromeProtocolHandlers();
     this.setupHttpServer();
     this.registerTools();
   }
 
   /**
-   * Start the unified server
+   * Start the MCP HTTP server
    */
   async start(): Promise<void> {
     // Get configured port (no fallback)
@@ -94,8 +94,8 @@ export class UnifiedServer {
       this.actualPort = await this.findAvailablePort(preferredPort);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[UnifiedServer] ERROR: Failed to bind to port ${preferredPort}`);
-      console.error(`[UnifiedServer] ${errMsg}`);
+      console.error(`[McpHttpServer] ERROR: Failed to bind to port ${preferredPort}`);
+      console.error(`[McpHttpServer] ${errMsg}`);
       console.error('');
       console.error('To resolve this:');
       console.error('  1. Stop the process using the port, or');
@@ -113,17 +113,17 @@ export class UnifiedServer {
     await this.startHttpServer();
 
     // Start native host (stdin reading)
-    this.nativeHost.start();
+    this.chromeProtocol.start();
 
     // Log to stderr (stdout is reserved for Chrome protocol)
-    console.error(`[UnifiedServer] Started - MCP endpoint: http://localhost:${this.actualPort}/mcp`);
+    console.error(`[McpHttpServer] Started - MCP endpoint: http://localhost:${this.actualPort}/mcp`);
   }
 
   /**
    * Stop the server
    */
   stop(): void {
-    this.nativeHost.stop();
+    this.chromeProtocol.stop();
     this.cleanupAllSessions();
     if (this.httpServer) {
       this.httpServer.close();
@@ -161,9 +161,9 @@ export class UnifiedServer {
   /**
    * Set up handlers for messages from Chrome extension
    */
-  private setupNativeHostHandlers(): void {
+  private setupChromeProtocolHandlers(): void {
     // Handle tool responses from Chrome
-    this.nativeHost.on('tool_response', (response: ToolResponseMessage) => {
+    this.chromeProtocol.on('tool_response', (response: ToolResponseMessage) => {
       // Chrome doesn't include request ID in responses, so we resolve FIFO
       const iterator = this.pendingToolRequests.entries().next();
       if (!iterator.done) {
@@ -189,44 +189,44 @@ export class UnifiedServer {
     });
 
     // Handle ping (respond with pong for health check)
-    this.nativeHost.on('ping', () => {
-      console.error('[UnifiedServer] Received ping, sending pong');
-      this.nativeHost.sendPong();
+    this.chromeProtocol.on('ping', () => {
+      console.error('[McpHttpServer] Received ping, sending pong');
+      this.chromeProtocol.sendPong();
     });
 
     // Handle get_status (respond with status_response)
-    this.nativeHost.on('get_status', () => {
-      console.error('[UnifiedServer] Received get_status, sending status_response');
-      this.nativeHost.sendStatusResponse(VERSION);
+    this.chromeProtocol.on('get_status', () => {
+      console.error('[McpHttpServer] Received get_status, sending status_response');
+      this.chromeProtocol.sendStatusResponse(VERSION);
     });
 
     // Handle pong (health check response)
-    this.nativeHost.on('pong', () => {
-      console.error('[UnifiedServer] Received pong from Chrome');
+    this.chromeProtocol.on('pong', () => {
+      console.error('[McpHttpServer] Received pong from Chrome');
     });
 
     // Handle status response
-    this.nativeHost.on('status_response', (msg) => {
-      console.error('[UnifiedServer] Chrome status:', msg);
+    this.chromeProtocol.on('status_response', (msg) => {
+      console.error('[McpHttpServer] Chrome status:', msg);
     });
 
     // Handle connection state changes
-    this.nativeHost.on('mcp_connected', () => {
-      console.error('[UnifiedServer] MCP client connected notification from Chrome');
+    this.chromeProtocol.on('mcp_connected', () => {
+      console.error('[McpHttpServer] MCP client connected notification from Chrome');
     });
 
-    this.nativeHost.on('mcp_disconnected', () => {
-      console.error('[UnifiedServer] MCP client disconnected notification from Chrome');
+    this.chromeProtocol.on('mcp_disconnected', () => {
+      console.error('[McpHttpServer] MCP client disconnected notification from Chrome');
     });
 
     // Handle errors
-    this.nativeHost.on('error', (err) => {
-      console.error('[UnifiedServer] Native host error:', err);
+    this.chromeProtocol.on('error', (err) => {
+      console.error('[McpHttpServer] Native host error:', err);
     });
 
     // Handle close
-    this.nativeHost.on('close', () => {
-      console.error('[UnifiedServer] Chrome disconnected, shutting down...');
+    this.chromeProtocol.on('close', () => {
+      console.error('[McpHttpServer] Chrome disconnected, shutting down...');
       this.stop();
       process.exit(0);
     });
@@ -357,7 +357,7 @@ export class UnifiedServer {
         };
 
         // Notify Chrome that an MCP client connected
-        this.nativeHost.sendMcpConnected();
+        this.chromeProtocol.sendMcpConnected();
 
         // Handle the request
         await transport.handleRequest(
@@ -517,7 +517,7 @@ export class UnifiedServer {
       }, TOOL_TIMEOUT_MS);
 
       this.pendingToolRequests.set(id, { resolve, reject, timeout });
-      this.nativeHost.sendToolRequest(chromeToolName, args);
+      this.chromeProtocol.sendToolRequest(chromeToolName, args);
     });
   }
 
@@ -565,12 +565,12 @@ export class UnifiedServer {
       
       const tabIdMatch = contentText.match(/Tab ID:\s*(\d+)/);
       if (!tabIdMatch) {
-        console.error('[UnifiedServer] Failed to extract tab ID from:', contentText);
+        console.error('[McpHttpServer] Failed to extract tab ID from:', contentText);
         return createResult;
       }
       
       const tabId = parseInt(tabIdMatch[1], 10);
-      console.error(`[UnifiedServer] Created tab ${tabId}, navigating to ${url}`);
+      console.error(`[McpHttpServer] Created tab ${tabId}, navigating to ${url}`);
       
       // Step 3: Navigate to the URL
       const navResult = await this.executeToolDirect('navigate', {
@@ -605,7 +605,7 @@ export class UnifiedServer {
         ],
       };
     } catch (error) {
-      console.error('[UnifiedServer] Error in handleTabsCreateWithUrl:', error);
+      console.error('[McpHttpServer] Error in handleTabsCreateWithUrl:', error);
       return {
         content: [
           { 
@@ -684,7 +684,7 @@ export class UnifiedServer {
 
       // Notify Chrome if no more sessions
       if (this.sessions.size === 0) {
-        this.nativeHost.sendMcpDisconnected();
+        this.chromeProtocol.sendMcpDisconnected();
       }
     }
   }
@@ -698,3 +698,6 @@ export class UnifiedServer {
     }
   }
 }
+
+// Legacy export for backward compatibility
+export { McpHttpServer as UnifiedServer };

@@ -10,8 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
-
-const MAX_MESSAGE_SIZE = 1024 * 1024; // 1 MB
+import { MAX_MESSAGE_SIZE } from './constants.js';
 
 // Message types from Chrome extension
 export interface ToolResponseMessage {
@@ -76,8 +75,8 @@ export interface ToolResponse {
   tabContext?: TabContext;
 }
 
-// Event types emitted by NativeHost
-export interface NativeHostEvents {
+// Event types emitted by ChromeProtocol
+export interface ChromeProtocolEvents {
   'tool_response': (response: ToolResponseMessage) => void;
   'ping': (message: PingMessage) => void;
   'pong': (message: PongMessage) => void;
@@ -89,7 +88,11 @@ export interface NativeHostEvents {
   'error': (error: Error) => void;
 }
 
-export class NativeHost extends EventEmitter {
+// Legacy export for backward compatibility
+export type NativeHostEvents = ChromeProtocolEvents;
+
+
+export class ChromeProtocol extends EventEmitter {
   private buffer: Buffer = Buffer.alloc(0);
   private running = false;
 
@@ -286,3 +289,6 @@ export class NativeHost extends EventEmitter {
     }
   }
 }
+
+// Legacy export for backward compatibility
+export { ChromeProtocol as NativeHost };

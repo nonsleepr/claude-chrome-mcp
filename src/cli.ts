@@ -13,7 +13,7 @@
  *   claude-chrome-mcp --help                    # Show help
  */
 
-import { UnifiedServer } from './unified-server.js';
+import { McpHttpServer } from './mcp-server.js';
 import { 
   installNativeHost, 
   uninstallNativeHost, 
@@ -277,7 +277,7 @@ async function runServer(options: CliOptions): Promise<void> {
     corsOrigins = process.env.MCP_CORS_ORIGINS.split(',').map((origin) => origin.trim());
   }
 
-  const server = new UnifiedServer({
+  const server = new McpHttpServer({
     port,
     authToken,
     corsOrigins,

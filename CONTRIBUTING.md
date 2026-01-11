@@ -92,7 +92,7 @@ We follow strict TypeScript conventions. Please review [AGENTS.md](./AGENTS.md) 
 - **Functions/Methods**: camelCase - `executeTool()`
 - **Variables**: camelCase - `socketPath`
 - **Constants**: UPPER_SNAKE_CASE - `MAX_MESSAGE_SIZE`
-- **File names**: kebab-case - `native-client.ts`
+- **File names**: kebab-case - `chrome-protocol.ts`
 
 #### Formatting
 

@@ -4,7 +4,7 @@
  * Validates that instructions exist and contain critical guidance
  */
 
-import { SERVER_INSTRUCTIONS } from '../dist/instructions.js';
+import { SERVER_INSTRUCTIONS } from '../../dist/instructions.js';
 
 // ANSI colors
 const colors = {

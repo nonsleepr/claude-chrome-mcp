@@ -4,7 +4,7 @@
  * Tests the configuration logic without requiring Chrome extension
  */
 
-import { UnifiedServer } from '../dist/unified-server.js';
+import { McpHttpServer } from '../../dist/mcp-server.js';
 import http from 'http';
 
 // Suppress stderr during tests (native host spams disconnected messages)
@@ -94,7 +94,7 @@ async function main() {
   // Test 1: Server without authentication
   log('\n--- Test Suite 1: No Authentication ---', 'blue');
   {
-    const server = new UnifiedServer({ port: 13101 });
+    const server = new McpHttpServer({ port: 13101 });
     
     try {
       await server.start();
@@ -150,7 +150,7 @@ async function main() {
   log('\n--- Test Suite 2: Bearer Token Authentication ---', 'blue');
   {
     const authToken = 'test-secret-token-xyz123';
-    const server = new UnifiedServer({ port: 13102, authToken });
+    const server = new McpHttpServer({ port: 13102, authToken });
     
     try {
       await server.start();
@@ -223,7 +223,7 @@ async function main() {
   log('\n--- Test Suite 3: Custom CORS Origins ---', 'blue');
   {
     const corsOrigins = ['https://app.example.com', 'https://api.example.com'];
-    const server = new UnifiedServer({ port: 13103, corsOrigins });
+    const server = new McpHttpServer({ port: 13103, corsOrigins });
     
     try {
       await server.start();

@@ -13,9 +13,20 @@ npm run test:auth       # Authentication and CORS tests
 npm run test:runtime    # Runtime detection tests
 ```
 
+## Test Structure
+
+```
+test/
+├── unit/                        # Unit tests
+│   ├── auth-cors.test.js       # HTTP middleware tests
+│   ├── runtime-detection.test.js # Bun/Node detection
+│   └── instructions.test.js    # Server instructions validation
+└── README.md
+```
+
 ## Available Tests
 
-### `auth-cors.test.js`
+### `unit/auth-cors.test.js`
 
 Unit tests for authentication and CORS middleware. Tests:
 - Unauthenticated server allows all localhost origins
@@ -25,7 +36,7 @@ Unit tests for authentication and CORS middleware. Tests:
 
 **Requirements**: None - runs standalone without Chrome extension
 
-### `runtime-detection.test.js`
+### `unit/runtime-detection.test.js`
 
 Tests for runtime detection (Bun vs Node). Tests:
 - Runtime detection from environment
@@ -33,6 +44,12 @@ Tests for runtime detection (Bun vs Node). Tests:
 - Installation status checking
 
 **Requirements**: Must run `npm run build` first
+
+### `unit/instructions.test.js`
+
+Tests for server instructions content validation.
+
+**Requirements**: None
 
 ## Test Structure
 
@@ -59,4 +76,4 @@ For manual integration testing with the Chrome extension:
 3. Restart Chrome completely
 4. Test tools via an MCP client (Claude Desktop, etc.)
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed testing guidelines.
+See [CONTRIBUTING.md](../CONTRIBUTING.md) and [docs/TESTING.md](../docs/TESTING.md) for detailed testing guidelines.

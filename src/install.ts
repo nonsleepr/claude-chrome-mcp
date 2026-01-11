@@ -9,9 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
-
-const DEFAULT_EXTENSION_ID = 'fcoeoabgfenejglbffodgkkbkcdhcgfn';
-const MANIFEST_NAME = 'com.anthropic.claude_code_browser_extension';
+import { DEFAULT_EXTENSION_ID, MANIFEST_NAME } from './constants.js';
 
 export interface InstallOptions {
   extensionId?: string;
