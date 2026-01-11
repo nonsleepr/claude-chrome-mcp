@@ -12,7 +12,7 @@ Please be respectful and constructive in all interactions. We aim to foster an i
 
 - Node.js 18.0.0 or later
 - Chrome/Chromium browser
-- Claude Browser Extension installed
+- [Claude Browser Extension](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn) installed
 - Git
 
 ### Development Setup
