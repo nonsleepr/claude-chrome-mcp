@@ -7,25 +7,59 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { execSync } from 'child_process';
 const DEFAULT_EXTENSION_ID = 'fcoeoabgfenejglbffodgkkbkcdhcgfn';
 const MANIFEST_NAME = 'com.anthropic.claude_code_browser_extension';
 /**
- * Get the path to the native host executable
+ * Detect which runtime to use (bun or node)
+ */
+function detectRuntime() {
+    // Strategy 1: Check npm_config_user_agent environment variable
+    const userAgent = process.env.npm_config_user_agent || '';
+    if (userAgent.includes('bun')) {
+        // User installed with bun, try to find bun executable
+        try {
+            const bunPath = process.platform === 'win32'
+                ? execSync('where bun', { encoding: 'utf8' }).trim().split('\n')[0]
+                : execSync('which bun', { encoding: 'utf8' }).trim();
+            if (bunPath && fs.existsSync(bunPath)) {
+                return { runtime: 'bun', execPath: bunPath };
+            }
+        }
+        catch (error) {
+            // Bun not found in PATH, fall back to checking if it exists
+        }
+    }
+    // Strategy 2: Check if bun executable exists (even if not installed via bun)
+    try {
+        const bunPath = process.platform === 'win32'
+            ? execSync('where bun', { encoding: 'utf8' }).trim().split('\n')[0]
+            : execSync('which bun', { encoding: 'utf8' }).trim();
+        if (bunPath && fs.existsSync(bunPath)) {
+            return { runtime: 'bun', execPath: bunPath };
+        }
+    }
+    catch (error) {
+        // Bun not available, will use Node
+    }
+    // Default: Use Node.js
+    return { runtime: 'node', execPath: process.execPath };
+}
+/**
+ * Get the path to the native host executable script
  */
 function getExecutablePath() {
-    // When installed globally via npm, this script runs from dist/cli.js
+    // When installed globally via npm/bun, this script runs from dist/cli.js
     // We need to return the path to the installed binary
     // Check if we're running from node_modules (global install)
     const scriptPath = process.argv[1];
-    // If running via npx or global install, the binary is the script itself
-    // We need to create a wrapper or use node directly
-    // For cross-platform compatibility, we'll use the node executable with the script
+    // Return the script path - the wrapper will invoke it with the detected runtime
     return scriptPath;
 }
 /**
  * Create a wrapper script for the native host
  */
-function createWrapperScript(targetDir, scriptPath, options) {
+function createWrapperScript(targetDir, scriptPath, runtimeInfo, options) {
     const wrapperPath = path.join(targetDir, 'claude-chrome-mcp-native-host');
     if (process.platform === 'win32') {
         // Windows batch file
@@ -40,13 +74,12 @@ function createWrapperScript(targetDir, scriptPath, options) {
         if (options.corsOrigins && options.corsOrigins.length > 0) {
             envVars.push(`set MCP_CORS_ORIGINS=${options.corsOrigins.join(',')}`);
         }
-        const content = `@echo off\r\n${envVars.join('\r\n')}${envVars.length > 0 ? '\r\n' : ''}"${process.execPath}" "${scriptPath}" %*\r\n`;
+        const content = `@echo off\r\n${envVars.join('\r\n')}${envVars.length > 0 ? '\r\n' : ''}"${runtimeInfo.execPath}" "${scriptPath}" %*\r\n`;
         fs.writeFileSync(batchPath, content);
         return batchPath;
     }
     else {
         // Unix shell script
-        const nodeExec = process.execPath;
         const envVars = [];
         if (options.port) {
             envVars.push(`export MCP_PORT=${options.port}`);
@@ -57,7 +90,7 @@ function createWrapperScript(targetDir, scriptPath, options) {
         if (options.corsOrigins && options.corsOrigins.length > 0) {
             envVars.push(`export MCP_CORS_ORIGINS="${options.corsOrigins.join(',')}"`);
         }
-        const content = `#!/usr/bin/env bash\n${envVars.join('\n')}${envVars.length > 0 ? '\n' : ''}exec "${nodeExec}" "${scriptPath}" "$@"\n`;
+        const content = `#!/usr/bin/env bash\n${envVars.join('\n')}${envVars.length > 0 ? '\n' : ''}exec "${runtimeInfo.execPath}" "${scriptPath}" "$@"\n`;
         fs.writeFileSync(wrapperPath, content, { mode: 0o755 });
         return wrapperPath;
     }
@@ -117,6 +150,9 @@ export async function installNativeHost(options = {}) {
     };
     log('Installing Claude Chrome MCP native host...');
     log(`Extension ID: ${extensionId}`);
+    // Detect runtime
+    const runtimeInfo = detectRuntime();
+    log(`Runtime: ${runtimeInfo.runtime} (${runtimeInfo.execPath})`);
     // Security configuration summary
     if (options.authToken) {
         log('Security: Bearer token authentication enabled');
@@ -148,7 +184,7 @@ export async function installNativeHost(options = {}) {
     }
     // Create wrapper script
     const scriptPath = getExecutablePath();
-    const wrapperPath = createWrapperScript(wrapperDir, scriptPath, options);
+    const wrapperPath = createWrapperScript(wrapperDir, scriptPath, runtimeInfo, options);
     log(`Created wrapper script: ${wrapperPath}`);
     // Create manifest
     const manifest = {
