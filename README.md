@@ -38,6 +38,23 @@ claude-chrome-mcp --install
 
 The server runs on `http://localhost:3456/mcp` by default.
 
+**For secure production use, see the [Security](#security-recommended-for-production) section below.**
+
+**Quick start (no authentication):**
+
+**OpenCode** (`~/.config/opencode/opencode.json`):
+```json
+{
+  "mcp": {
+    "claude_chrome": {
+      "type": "remote",
+      "url": "http://localhost:3456/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
 **Claude Desktop** (`claude_desktop_config.json`):
 ```json
 {
@@ -50,34 +67,144 @@ The server runs on `http://localhost:3456/mcp` by default.
 }
 ```
 
-**Other MCP Clients**:
+## Security (Recommended for Production)
+
+### Installation with Authentication
+
+For secure deployments, install with Bearer token authentication:
+
+```bash
+# Generate a secure 256-bit token
+AUTH_TOKEN=$(openssl rand -hex 32)
+
+# Install with authentication
+claude-chrome-mcp --install --auth-token "$AUTH_TOKEN" --port 3456
+
+# Save the token securely (you'll need it for client configuration)
+echo "$AUTH_TOKEN" > ~/.config/claude-chrome-mcp-token.txt
+chmod 600 ~/.config/claude-chrome-mcp-token.txt
+```
+
+### Client Configuration Examples
+
+#### OpenCode
+
+Add to `~/.config/opencode/opencode.json`:
+
 ```json
 {
-  "mcpServers": {
+  "mcp": {
     "claude_chrome": {
-      "type": "http",
-      "url": "http://localhost:3456/mcp"
+      "type": "remote",
+      "url": "http://localhost:3456/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
     }
   }
 }
 ```
 
-## Security (Optional)
+#### Claude Desktop
 
-Install with authentication:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
-```bash
-claude-chrome-mcp --install --auth-token "$(openssl rand -hex 32)" --port 3456
-```
-
-Then configure your MCP client to send the token:
 ```json
 {
-  "env": {
-    "MCP_REMOTE_HEADERS": "{\"Authorization\": \"Bearer YOUR_TOKEN_HERE\"}"
+  "mcpServers": {
+    "claude_chrome": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"],
+      "env": {
+        "MCP_REMOTE_HEADERS": "{\"Authorization\": \"Bearer YOUR_TOKEN_HERE\"}"
+      }
+    }
   }
 }
 ```
+
+#### Cline (VS Code Extension)
+
+Add to VS Code settings (`.vscode/settings.json` or User Settings):
+
+```json
+{
+  "cline.mcpServers": {
+    "claude_chrome": {
+      "type": "http",
+      "url": "http://localhost:3456/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+#### Continue.dev
+
+Add to `~/.continue/config.json`:
+
+```json
+{
+  "mcpServers": {
+    "claude_chrome": {
+      "transport": {
+        "type": "http",
+        "url": "http://localhost:3456/mcp",
+        "headers": {
+          "Authorization": "Bearer YOUR_TOKEN_HERE"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Generic MCP Client (HTTP Transport)
+
+For any MCP client supporting HTTP transport with headers:
+
+```json
+{
+  "mcpServers": {
+    "claude_chrome": {
+      "type": "http",
+      "url": "http://localhost:3456/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+### Security Best Practices
+
+1. **Use Strong Tokens**: Always generate tokens with `openssl rand -hex 32` (256 bits)
+2. **Protect Token Files**: Set restrictive permissions (`chmod 600`) on files containing tokens
+3. **Localhost Only**: Server binds to `127.0.0.1` by default - don't expose to network
+4. **Token Rotation**: Periodically regenerate tokens by reinstalling with `--auth-token`
+5. **Validate Access**: Monitor Chrome extension background console for connection attempts
+6. **Secure Storage**: Never commit tokens to version control - use environment variables or secure vaults
+
+### Additional Security Resources
+
+- [MCP Authorization Best Practices](https://modelcontextprotocol.io/docs/tutorials/security/authorization)
+- [MCP Auth Implementation Guide](https://blog.logto.io/mcp-auth-implementation-guide-2025-06-18)
+- [GitHub: Secure and Scalable Remote MCP Servers](https://github.blog/ai-and-ml/generative-ai/how-to-build-secure-and-scalable-remote-mcp-servers/)
+- [OAuth 2.1 Best Practices for MCP](https://aembit.io/blog/mcp-oauth-2-1-pkce-and-the-future-of-ai-authorization/)
+
+### Without Authentication (Local Development Only)
+
+For local development without sensitive data:
+
+```bash
+claude-chrome-mcp --install
+```
+
+Configure client without auth header (omit the `Authorization` header or `env` block).
 
 **Port Configuration**:
 - The configured port must be available when the native host starts
