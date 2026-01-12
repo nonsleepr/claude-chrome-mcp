@@ -14,7 +14,7 @@ Install from [claude.com/chrome](https://claude.com/chrome) or directly from the
 ```bash
 bun install -g git+https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
 
-# Register native host
+# Register native host (secure by default - auto-generates auth token)
 claude-chrome-mcp --install
 
 # Restart Chrome completely
@@ -28,21 +28,76 @@ bun install
 bun run build
 bun link
 
-# Register native host
+# Register native host (secure by default - auto-generates auth token)
 claude-chrome-mcp --install
 
 # Restart Chrome completely
 ```
 
-### 3. Configure MCP Client
+### 3. Get Your Authentication Token
+
+After installation, your auto-generated authentication token is displayed in the terminal output.
+
+You can also retrieve it anytime with:
+
+```bash
+claude-chrome-mcp --status
+```
+
+The status command displays your token and ready-to-use configuration examples.
+
+### 4. Configure MCP Client
+
+Use the authentication token from the installation output or `--status` command.
 
 The server runs on `http://localhost:3456/mcp` by default.
 
-**For secure production use, see the [Security](#security-recommended-for-production) section below.**
-
-**Quick start (no authentication):**
-
 **OpenCode** (`~/.config/opencode/opencode.json`):
+```json
+{
+  "mcp": {
+    "chrome": {
+      "type": "remote",
+      "url": "http://localhost:3456/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer YOUR_AUTO_GENERATED_TOKEN_HERE"
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "chrome": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"],
+      "env": {
+        "MCP_REMOTE_HEADERS": "{\"Authorization\": \"Bearer YOUR_AUTO_GENERATED_TOKEN_HERE\"}"
+      }
+    }
+  }
+}
+```
+
+## Insecure Mode (Local Development Only)
+
+For local development without sensitive data, you can skip authentication:
+
+```bash
+claude-chrome-mcp --install --insecure
+```
+
+**WARNING:** This allows anyone with localhost access to control your browser.
+
+**Client configuration without auth:**
+
+**Client configuration without auth:**
+
+**OpenCode:**
 ```json
 {
   "mcp": {
@@ -55,7 +110,7 @@ The server runs on `http://localhost:3456/mcp` by default.
 }
 ```
 
-**Claude Desktop** (`claude_desktop_config.json`):
+**Claude Desktop:**
 ```json
 {
   "mcpServers": {
@@ -67,29 +122,43 @@ The server runs on `http://localhost:3456/mcp` by default.
 }
 ```
 
-## Security (Recommended for Production)
+## Advanced Configuration
 
-### Installation with Authentication
+### Custom Authentication Token
 
-For secure deployments, install with Bearer token authentication:
+To use your own token instead of auto-generated:
+
+### Custom Authentication Token
+
+To use your own token instead of auto-generated:
 
 ```bash
 # Generate a secure 256-bit token
 AUTH_TOKEN=$(openssl rand -hex 32)
 
-# Install with authentication
-claude-chrome-mcp --install --auth-token "$AUTH_TOKEN" --port 3456
+# Install with custom token
+claude-chrome-mcp --install --auth-token "$AUTH_TOKEN"
+```
 
-# Save the token securely (you'll need it for client configuration)
-echo "$AUTH_TOKEN" > ~/.config/claude-chrome-mcp-token.txt
-chmod 600 ~/.config/claude-chrome-mcp-token.txt
+### Custom Port
+
+```bash
+claude-chrome-mcp --install --port 8080
+```
+
+### Custom CORS Origins
+
+By default, only localhost origins are allowed. To allow specific domains:
+
+```bash
+claude-chrome-mcp --install --cors-origins "https://app.example.com,https://api.example.com"
 ```
 
 ### Client Configuration Examples
 
 #### OpenCode
 
-Add to `~/.config/opencode/opencode.json`:
+`~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -108,7 +177,7 @@ Add to `~/.config/opencode/opencode.json`:
 
 #### Claude Desktop
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+`~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -126,7 +195,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 
 #### Cline (VS Code Extension)
 
-Add to VS Code settings (`.vscode/settings.json` or User Settings):
+`.vscode/settings.json` or User Settings:
 
 ```json
 {
@@ -144,7 +213,7 @@ Add to VS Code settings (`.vscode/settings.json` or User Settings):
 
 #### Continue.dev
 
-Add to `~/.continue/config.json`:
+`~/.continue/config.json`:
 
 ```json
 {
@@ -164,8 +233,6 @@ Add to `~/.continue/config.json`:
 
 #### Generic MCP Client (HTTP Transport)
 
-For any MCP client supporting HTTP transport with headers:
-
 ```json
 {
   "mcpServers": {
@@ -182,10 +249,10 @@ For any MCP client supporting HTTP transport with headers:
 
 ### Security Best Practices
 
-1. **Use Strong Tokens**: Always generate tokens with `openssl rand -hex 32` (256 bits)
-2. **Protect Token Files**: Set restrictive permissions (`chmod 600`) on files containing tokens
+1. **Auto-Generated Tokens**: Default installation generates secure 256-bit tokens
+2. **Retrieve Token**: Use `claude-chrome-mcp --status` to view your token anytime
 3. **Localhost Only**: Server binds to `127.0.0.1` by default - don't expose to network
-4. **Token Rotation**: Periodically regenerate tokens by reinstalling with `--auth-token`
+4. **Token Rotation**: Periodically regenerate tokens by reinstalling
 5. **Validate Access**: Monitor Chrome extension background console for connection attempts
 6. **Secure Storage**: Never commit tokens to version control - use environment variables or secure vaults
 
@@ -195,24 +262,6 @@ For any MCP client supporting HTTP transport with headers:
 - [MCP Auth Implementation Guide](https://blog.logto.io/mcp-auth-implementation-guide-2025-06-18)
 - [GitHub: Secure and Scalable Remote MCP Servers](https://github.blog/ai-and-ml/generative-ai/how-to-build-secure-and-scalable-remote-mcp-servers/)
 - [OAuth 2.1 Best Practices for MCP](https://aembit.io/blog/mcp-oauth-2-1-pkce-and-the-future-of-ai-authorization/)
-
-### Without Authentication (Local Development Only)
-
-For local development without sensitive data:
-
-```bash
-claude-chrome-mcp --install
-```
-
-Configure client without auth header (omit the `Authorization` header or `env` block).
-
-**Port Configuration**:
-- The configured port must be available when the native host starts
-- If the port is busy, the service will fail with an error message
-- To use a different port, reinstall with `--port <different-port>`
-- Check what's using a port:
-  - Linux/Mac: `lsof -i :3456`
-  - Windows: `netstat -ano | findstr :3456`
 
 ## Available Tools
 
@@ -234,16 +283,16 @@ Configure client without auth header (omit the `Authorization` header or `env` b
 ## CLI Commands
 
 ```bash
-claude-chrome-mcp --install              # Install native host
-claude-chrome-mcp --install --auth-token "token"  # With auth
-claude-chrome-mcp --status               # Check status
+claude-chrome-mcp --install              # Install (secure by default)
+claude-chrome-mcp --install --insecure   # Install without auth (local dev)
+claude-chrome-mcp --status               # Check status & view token
 claude-chrome-mcp --uninstall            # Uninstall
 claude-chrome-mcp --help                 # Show help
 ```
 
 ## Troubleshooting
 
-**Check status**:
+**Check status and view token**:
 ```bash
 claude-chrome-mcp --status
 ```
@@ -252,7 +301,7 @@ claude-chrome-mcp --status
 If you see an error about the port being busy:
 1. Find what's using the port: `lsof -i :3456` (Mac/Linux) or `netstat -ano | findstr :3456` (Windows)
 2. Stop the conflicting process, or
-3. Reinstall with a different port: `claude-chrome-mcp --install --port 8080 --auth-token "token"`
+3. Reinstall with a different port: `claude-chrome-mcp --install --port 8080`
 
 **Connection issues**:
 1. Restart Chrome completely after installation

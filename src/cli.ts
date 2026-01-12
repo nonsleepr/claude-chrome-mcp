@@ -43,6 +43,7 @@ interface CliOptions {
   uninstall: boolean;
   status: boolean;
   help: boolean;
+  insecure: boolean;
   extensionId?: string;
   port?: number;
   authToken?: string;
@@ -56,6 +57,7 @@ function parseArgs(): CliOptions {
     uninstall: false,
     status: false,
     help: false,
+    insecure: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -78,6 +80,10 @@ function parseArgs(): CliOptions {
 
       case '--status':
         options.status = true;
+        break;
+
+      case '--insecure':
+        options.insecure = true;
         break;
 
       case '--extension-id':
@@ -151,14 +157,17 @@ function printHelp(): void {
   console.log(section('INSTALL CONFIGURATION'));
   console.log(dim('  These options are only used with --install:'));
   console.log('');
+  console.log(`  ${command('--insecure')}              Skip authentication (local dev only)`);
+  console.log(dim('                          WARNING: Anyone on localhost can control browser'));
+  console.log('');
+  console.log(`  ${command('--auth-token')} <token>    Use custom authentication token`);
+  console.log(dim('                          (default: auto-generated 256-bit token)'));
+  console.log('');
   console.log(`  ${command('--extension-id')} <id>     Custom Chrome extension ID`);
   console.log(dim('                          (default: official Claude extension)'));
   console.log('');
   console.log(`  ${command('--port')} <port>           HTTP server port`);
   console.log(dim('                          (default: 3456)'));
-  console.log('');
-  console.log(`  ${command('--auth-token')} <token>    Require Bearer token authentication`);
-  console.log(`                          ${insecure('(default: none - INSECURE!')}`);
   console.log('');
   console.log(`  ${command('--cors-origins')} <list>   Comma-separated allowed CORS origins`);
   console.log(dim('                          (default: localhost only)'));
@@ -168,8 +177,8 @@ function printHelp(): void {
   console.log('  1. Install the package globally:');
   console.log(`     ${dim('$')} ${code('npm install -g claude-chrome-mcp')}`);
   console.log('');
-  console.log('  2. Register as native host with authentication:');
-  console.log(`     ${dim('$')} ${code('claude-chrome-mcp --install --auth-token "your-secret-token"')}`);
+  console.log('  2. Register as native host (secure by default):');
+  console.log(`     ${dim('$')} ${code('claude-chrome-mcp --install')}`);
   console.log('');
   console.log('  3. Restart Chrome completely (quit and reopen)');
   console.log('');
@@ -180,11 +189,17 @@ function printHelp(): void {
   console.log(`  ${warning('[!]')} IMPORTANT: Security settings are configured at INSTALL time, not runtime.`);
   console.log('');
   console.log('  Authentication:');
-  console.log('    Use --auth-token during installation to require Bearer token authentication.');
+  console.log('    By default, installation auto-generates a secure 256-bit token.');
   console.log('    Token is stored in the wrapper script as an environment variable.');
   console.log('');
-  console.log('    Generate a secure token:');
+  console.log('    Default (secure):');
+  console.log(`      ${dim('$')} ${code('claude-chrome-mcp --install')}`);
+  console.log('');
+  console.log('    Custom token:');
   console.log(`      ${dim('$')} ${code('claude-chrome-mcp --install --auth-token "$(openssl rand -hex 32)"')}`);
+  console.log('');
+  console.log('    Insecure mode (local dev only):');
+  console.log(`      ${dim('$')} ${code('claude-chrome-mcp --install --insecure')}`);
   console.log('');
   console.log('  CORS Origins:');
   console.log('    By default, only localhost origins are allowed.');
@@ -212,10 +227,13 @@ function printHelp(): void {
   console.log('');
   
   console.log(section('EXAMPLES'));
-  console.log(`  Install with default settings ${insecure('(INSECURE - not recommended)')}:`);
+  console.log(`  Install with default settings ${successColor('(SECURE - recommended)')}:`);
   console.log(`    ${dim('$')} ${code('claude-chrome-mcp --install')}`);
   console.log('');
-  console.log(`  Install with authentication ${successColor('(RECOMMENDED)')}:`);
+  console.log(`  Install without authentication ${insecure('(INSECURE - local dev only)')}:`);
+  console.log(`    ${dim('$')} ${code('claude-chrome-mcp --install --insecure')}`);
+  console.log('');
+  console.log('  Install with custom token:');
   console.log(`    ${dim('$')} ${code('claude-chrome-mcp --install --auth-token "my-secret-token-12345"')}`);
   console.log('');
   console.log('  Install with full configuration:');
@@ -226,8 +244,7 @@ function printHelp(): void {
   console.log('');
   console.log('  Install with custom extension:');
   console.log(`    ${dim('$')} ${code('claude-chrome-mcp --install \\')}`);
-  console.log(`        ${code('--extension-id abcdefghijklmnop \\')}`);
-  console.log(`        ${code('--auth-token "secret"')}`);
+  console.log(`        ${code('--extension-id abcdefghijklmnop')}`);
   console.log('');
   console.log('  Check installation status:');
   console.log(`    ${dim('$')} ${code('claude-chrome-mcp --status')}`);
@@ -237,6 +254,9 @@ function printHelp(): void {
   console.log('');
   
   console.log(section('MCP CLIENT CONFIGURATION'));
+  console.log(dim('After installation, the auth token is displayed in the output.'));
+  console.log(dim('You can also view it anytime with: claude-chrome-mcp --status'));
+  console.log('');
   const mcpConfig = {
     mcpServers: {
       chrome: {
@@ -244,7 +264,7 @@ function printHelp(): void {
           type: 'http',
           url: 'http://localhost:3456/mcp',
           headers: {
-            Authorization: 'Bearer your-secret-token',
+            Authorization: 'Bearer your-auto-generated-token-here',
           },
         },
       },
@@ -267,7 +287,7 @@ function printStatus(): void {
     console.log(labelValue('Status:', `${symbols.error} Not Installed`));
     console.log('');
     console.log('To install:');
-    console.log(`  ${dim('$')} ${code('claude-chrome-mcp --install --auth-token "your-secret-token"')}`);
+    console.log(`  ${dim('$')} ${code('claude-chrome-mcp --install')}`);
     console.log('');
     console.log('For help:');
     console.log(`  ${dim('$')} ${code('claude-chrome-mcp --help')}`);
@@ -310,8 +330,60 @@ function printStatus(): void {
       'Anyone with localhost access can control your browser.',
       '',
       'To add authentication, reinstall with:',
-      `  ${code('$ claude-chrome-mcp --install --auth-token "your-secret-token"')}`,
+      `  ${code('$ claude-chrome-mcp --install')}`,
+      '',
+      'Or to explicitly allow insecure mode:',
+      `  ${code('$ claude-chrome-mcp --install --insecure')}`,
     ]));
+  }
+  
+  // Display token and config if available
+  if (info.authToken) {
+    console.log('='.repeat(70));
+    console.log('Your Authentication Token:');
+    console.log('='.repeat(70));
+    console.log('');
+    console.log(info.authToken);
+    console.log('');
+    console.log('='.repeat(70));
+    console.log('');
+    
+    const port = info.port ?? 3456;
+    const mcpUrl = `http://localhost:${port}/mcp`;
+    
+    console.log(section('MCP Client Configuration:'));
+    console.log(dim('OpenCode (~/.config/opencode/opencode.json):'));
+    const opencodeConfig = {
+      mcp: {
+        chrome: {
+          type: 'remote',
+          url: mcpUrl,
+          enabled: true,
+          headers: {
+            Authorization: `Bearer ${info.authToken}`,
+          },
+        },
+      },
+    };
+    console.log(highlightJSON(opencodeConfig));
+    console.log('');
+    
+    console.log(dim('Claude Desktop / Generic MCP Client:'));
+    const genericConfig = {
+      mcpServers: {
+        chrome: {
+          transport: {
+            type: 'http',
+            url: mcpUrl,
+            headers: {
+              Authorization: `Bearer ${info.authToken}`,
+            },
+          },
+        },
+      },
+    };
+    console.log(highlightJSON(genericConfig));
+    console.log('');
   }
   
   console.log(section('Next Steps:'));
@@ -396,6 +468,7 @@ async function main(): Promise<void> {
       port: options.port,
       authToken: options.authToken,
       corsOrigins: options.corsOrigins,
+      insecure: options.insecure,
       verbose: true,
     });
     return;

@@ -46,14 +46,17 @@ bun install
 bun run build
 bun link
 
-# Register native host
+# Register native host (secure by default - auto-generates token)
 claude-chrome-mcp --install
 
-# Install with authentication (optional)
-claude-chrome-mcp --install --auth-token "$(openssl rand -hex 32)" --port 3456
-
-# Check installation status
+# Check installation status and view token
 claude-chrome-mcp --status
+
+# Install without authentication (local dev only)
+claude-chrome-mcp --install --insecure
+
+# Install with custom token
+claude-chrome-mcp --install --auth-token "$(openssl rand -hex 32)"
 
 # Uninstall
 claude-chrome-mcp --uninstall
