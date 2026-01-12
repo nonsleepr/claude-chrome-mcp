@@ -38,7 +38,7 @@ bun test/unit/<test-name>.test.js # Run specific test
 ### Installation and Start Commands
 ```bash
 # Install globally from git
-bun install -g git+https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
+bun install -g git+https://github.com/nonsleepr/claude-chrome-mcp.git
 
 # OR install from local clone
 cd claude-chrome-mcp
