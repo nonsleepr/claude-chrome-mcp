@@ -46,7 +46,7 @@ The server runs on `http://localhost:3456/mcp` by default.
 ```json
 {
   "mcp": {
-    "claude_chrome": {
+    "chrome": {
       "type": "remote",
       "url": "http://localhost:3456/mcp",
       "enabled": true
@@ -59,7 +59,7 @@ The server runs on `http://localhost:3456/mcp` by default.
 ```json
 {
   "mcpServers": {
-    "claude_chrome": {
+    "chrome": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"]
     }
@@ -94,7 +94,7 @@ Add to `~/.config/opencode/opencode.json`:
 ```json
 {
   "mcp": {
-    "claude_chrome": {
+    "chrome": {
       "type": "remote",
       "url": "http://localhost:3456/mcp",
       "enabled": true,
@@ -113,7 +113,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 ```json
 {
   "mcpServers": {
-    "claude_chrome": {
+    "chrome": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"],
       "env": {
@@ -131,7 +131,7 @@ Add to VS Code settings (`.vscode/settings.json` or User Settings):
 ```json
 {
   "cline.mcpServers": {
-    "claude_chrome": {
+    "chrome": {
       "type": "http",
       "url": "http://localhost:3456/mcp",
       "headers": {
@@ -149,7 +149,7 @@ Add to `~/.continue/config.json`:
 ```json
 {
   "mcpServers": {
-    "claude_chrome": {
+    "chrome": {
       "transport": {
         "type": "http",
         "url": "http://localhost:3456/mcp",
@@ -169,7 +169,7 @@ For any MCP client supporting HTTP transport with headers:
 ```json
 {
   "mcpServers": {
-    "claude_chrome": {
+    "chrome": {
       "type": "http",
       "url": "http://localhost:3456/mcp",
       "headers": {

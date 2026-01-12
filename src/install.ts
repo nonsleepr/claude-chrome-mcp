@@ -10,6 +10,23 @@ import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import { DEFAULT_EXTENSION_ID, MANIFEST_NAME } from './constants.js';
+import {
+  title,
+  section,
+  statusLine,
+  symbols,
+  secure,
+  insecure,
+  insecureWithBg,
+  info,
+  warningBlock,
+  code,
+  highlightJSON,
+  dim,
+  path as pathColor,
+  url,
+  success,
+} from './utils/format.js';
 
 export interface InstallOptions {
   extensionId?: string;
@@ -179,47 +196,67 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
     if (verbose) console.log(msg);
   };
 
-  log('Installing Claude Chrome MCP native host...');
-  log(`Extension ID: ${extensionId}`);
+  log(title('Installing Claude Chrome MCP Native Host'));
+  log('');
 
   // Detect runtime
   const runtimeInfo = detectRuntime();
-  log(`Runtime: ${runtimeInfo.runtime} (${runtimeInfo.execPath})`);
+  log(section('Detecting environment...'));
+  log(statusLine(`Runtime: ${runtimeInfo.runtime} (${runtimeInfo.execPath})`, 'success'));
+  log(statusLine(`Extension ID: ${extensionId}`, 'success'));
+  log('');
 
   // Security configuration summary
+  log(section('Security Configuration:'));
   if (options.authToken) {
-    log('Security: Bearer token authentication enabled');
+    log(statusLine('Auth Token: ' + secure('Enabled'), 'success'));
   } else {
-    log('');
-    log('⚠️  WARNING: No authentication configured!');
-    log('   Anyone with access to localhost can control your browser.');
-    log('   Use --auth-token to enable authentication.');
-    log('');
+    log(statusLine('Auth Token: ' + insecureWithBg('DISABLED - INSECURE!'), 'error'));
   }
   
   if (options.corsOrigins && options.corsOrigins.length > 0) {
-    log(`CORS: ${options.corsOrigins.join(', ')}`);
+    log(statusLine(`CORS: ${options.corsOrigins.join(', ')}`, 'info'));
   } else {
-    log('CORS: localhost only (default)');
+    log(statusLine('CORS: localhost only (default)', 'info'));
   }
   
   if (options.port) {
-    log(`Port: ${options.port}`);
+    log(statusLine(`Port: ${options.port}`, 'info'));
   } else {
-    log('Port: 3456 (default)');
+    log(statusLine('Port: 3456 (default)', 'info'));
+  }
+  log('');
+
+  // Show security warning if no auth token
+  if (!options.authToken) {
+    log(warningBlock([
+      '',
+      'No authentication configured!',
+      '',
+      'Anyone with access to localhost can control your browser.',
+      'This is INSECURE and not recommended for production use.',
+      '',
+      'To add authentication, reinstall with:',
+      `  ${code('$ claude-chrome-mcp --install --auth-token "your-secret-token"')}`,
+      '',
+    ]));
   }
 
   // Create wrapper directory
   const wrapperDir = getWrapperDir();
+  log(section('Creating installation files...'));
   if (!fs.existsSync(wrapperDir)) {
     fs.mkdirSync(wrapperDir, { recursive: true });
-    log(`Created wrapper directory: ${wrapperDir}`);
+    log(statusLine(`Wrapper directory: ${pathColor(wrapperDir)}`, 'success'));
+  } else {
+    log(statusLine(`Wrapper directory: ${pathColor(wrapperDir)}`, 'success'));
   }
 
   // Create wrapper script
   const scriptPath = getExecutablePath();
   const wrapperPath = createWrapperScript(wrapperDir, scriptPath, runtimeInfo, options);
-  log(`Created wrapper script: ${wrapperPath}`);
+  log(statusLine(`Wrapper script: ${pathColor(wrapperPath)}`, 'success'));
+  log('');
 
   // Create manifest
   const manifest = {
@@ -234,6 +271,7 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
   const dirs = getNativeMessagingDirs();
   let installed = false;
 
+  log(section('Installing manifest files...'));
   for (const dir of dirs) {
     // Check if the browser config directory exists (parent of NativeMessagingHosts)
     const browserConfigDir = path.dirname(dir);
@@ -255,42 +293,39 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
     const manifestPath = path.join(dir, manifestFilename);
     try {
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-      log(`Installed manifest: ${manifestPath}`);
+      const browserName = dir.includes('chromium') ? 'Chromium' : 'Chrome';
+      log(statusLine(`${browserName}: ${pathColor(manifestPath)}`, 'success'));
       installed = true;
     } catch (err) {
       console.error(`Failed to write manifest to ${manifestPath}:`, err);
     }
   }
+  log('');
 
   if (!installed) {
     console.error('No Chrome/Chromium installations found. Please install Chrome first.');
     process.exit(1);
   }
 
+  log(success('Installation Complete!'));
   log('');
-  log('Installation complete!');
+  
+  log(section('Next Steps:'));
+  log('  1. Restart Chrome/Chromium completely (quit and reopen)');
+  log('  2. The native host will start automatically when extension connects');
+  log('  3. Configure your MCP client with the endpoint below');
   log('');
-  log('Next steps:');
-  log('1. Restart Chrome/Chromium completely (quit and reopen)');
-  log('2. The native host will start automatically when the extension connects');
   
   const port = options.port || 3456;
   const mcpUrl = `http://localhost:${port}/mcp`;
-  log(`3. Configure your MCP client to use: ${mcpUrl}`);
-  
-  if (options.authToken) {
-    log('');
-    log('⚠️  IMPORTANT: Your MCP client must include the bearer token:');
-    log('   Add this to your MCP client configuration:');
-    log('   "headers": { "Authorization": "Bearer <your-token>" }');
-  }
-  
+  log(section('MCP Endpoint:'));
+  log(`  ${url(mcpUrl)}`);
   log('');
-  log('MCP client configuration example:');
   
+  log(section('MCP Client Configuration:'));
   const exampleConfig: Record<string, unknown> = {
     mcpServers: {
-      'claude_chrome': {
+      chrome: {
         transport: {
           type: 'http',
           url: mcpUrl,
@@ -300,25 +335,31 @@ export async function installNativeHost(options: InstallOptions = {}): Promise<v
   };
   
   if (options.authToken) {
-    (exampleConfig.mcpServers as Record<string, unknown>)['claude_chrome'] = {
+    (exampleConfig.mcpServers as Record<string, unknown>)['chrome'] = {
       transport: {
         type: 'http',
         url: mcpUrl,
         headers: {
-          Authorization: 'Bearer YOUR_AUTH_TOKEN_HERE',
+          Authorization: 'Bearer YOUR_TOKEN_HERE',
         },
       },
     };
   }
   
-  log(JSON.stringify(exampleConfig, null, 2));
+  log(highlightJSON(exampleConfig));
+  log('');
   
   if (!options.authToken) {
-    log('');
-    log('⚠️  Security Warning: No authentication configured!');
-    log('   To add authentication, reinstall with:');
-    log('   claude-chrome-mcp --install --auth-token "your-secret-token"');
+    log(warningBlock([
+      'Security Warning: No authentication configured!',
+      'To add authentication, reinstall with:',
+      `  ${code('$ claude-chrome-mcp --install --auth-token "your-secret-token"')}`,
+    ]));
   }
+  
+  log(dim('Tip: Test the connection after restarting Chrome:'));
+  log(dim(`  $ ${code('claude-chrome-mcp --status')}`));
+  log('');
 }
 
 /**
@@ -331,18 +372,21 @@ export async function uninstallNativeHost(options: { verbose?: boolean } = {}): 
     if (verbose) console.log(msg);
   };
 
-  log('Uninstalling Claude Chrome MCP native host...');
+  log(title('Uninstalling Claude Chrome MCP Native Host'));
+  log('');
 
   const manifestFilename = `${MANIFEST_NAME}.json`;
   const dirs = getNativeMessagingDirs();
   let uninstalled = false;
 
+  log(section('Removing installation files...'));
   for (const dir of dirs) {
     const manifestPath = path.join(dir, manifestFilename);
     if (fs.existsSync(manifestPath)) {
       try {
         fs.unlinkSync(manifestPath);
-        log(`Removed manifest: ${manifestPath}`);
+        const browserName = dir.includes('chromium') ? 'Chromium' : 'Chrome';
+        log(statusLine(`Manifest (${browserName}): ${pathColor(manifestPath)}`, 'success'));
         uninstalled = true;
       } catch (err) {
         console.error(`Failed to remove manifest from ${manifestPath}:`, err);
@@ -355,18 +399,27 @@ export async function uninstallNativeHost(options: { verbose?: boolean } = {}): 
   if (fs.existsSync(wrapperDir)) {
     try {
       fs.rmSync(wrapperDir, { recursive: true });
-      log(`Removed wrapper directory: ${wrapperDir}`);
+      log(statusLine(`Wrapper: ${pathColor(wrapperDir)}`, 'success'));
     } catch (err) {
       console.error(`Failed to remove wrapper directory:`, err);
     }
   }
+  log('');
 
   if (uninstalled) {
+    log(success('Uninstallation Complete!'));
     log('');
-    log('Uninstallation complete!');
-    log('Please restart Chrome/Chromium for changes to take effect.');
+    log(section('Next Steps:'));
+    log('  - Restart Chrome/Chromium for changes to take effect');
+    log('  - MCP clients will no longer be able to connect');
+    log('');
+    log(dim(`To reinstall: ${code('claude-chrome-mcp --install')}`));
+    log('');
   } else {
-    log('No native host manifests found to uninstall.');
+    log(statusLine('No native host manifests found to uninstall.', 'info'));
+    log('');
+    log(dim(`To install: ${code('claude-chrome-mcp --install')}`));
+    log('');
   }
 }
 
@@ -388,6 +441,71 @@ export function isNativeHostInstalled(): boolean {
 }
 
 /**
+ * Check if auth token is configured in wrapper script
+ */
+function hasAuthToken(wrapperDir: string): boolean {
+  try {
+    const wrapperPath = process.platform === 'win32'
+      ? path.join(wrapperDir, 'claude-chrome-mcp-native-host.bat')
+      : path.join(wrapperDir, 'claude-chrome-mcp-native-host');
+    
+    if (!fs.existsSync(wrapperPath)) return false;
+    
+    const content = fs.readFileSync(wrapperPath, 'utf8');
+    
+    // Check for environment variable in wrapper script
+    // Look for MCP_AUTH_TOKEN with a non-empty value
+    const hasToken = content.includes('MCP_AUTH_TOKEN');
+    const isEmpty = content.includes('MCP_AUTH_TOKEN=""') || 
+                   content.includes('MCP_AUTH_TOKEN=\'\'') ||
+                   content.match(/MCP_AUTH_TOKEN=\s*$/m);  // Empty value
+    
+    return hasToken && !isEmpty;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get port from wrapper script
+ */
+function getConfiguredPort(wrapperDir: string): number | undefined {
+  try {
+    const wrapperPath = process.platform === 'win32'
+      ? path.join(wrapperDir, 'claude-chrome-mcp-native-host.bat')
+      : path.join(wrapperDir, 'claude-chrome-mcp-native-host');
+    
+    if (!fs.existsSync(wrapperPath)) return undefined;
+    
+    const content = fs.readFileSync(wrapperPath, 'utf8');
+    const match = content.match(/MCP_PORT[=\s]+(\d+)/);
+    return match ? parseInt(match[1], 10) : 3456;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Get runtime from wrapper script
+ */
+function getConfiguredRuntime(wrapperDir: string): string | undefined {
+  try {
+    const wrapperPath = process.platform === 'win32'
+      ? path.join(wrapperDir, 'claude-chrome-mcp-native-host.bat')
+      : path.join(wrapperDir, 'claude-chrome-mcp-native-host');
+    
+    if (!fs.existsSync(wrapperPath)) return undefined;
+    
+    const content = fs.readFileSync(wrapperPath, 'utf8');
+    if (content.includes('/bun')) return 'bun';
+    if (content.includes('\\bun')) return 'bun';
+    return 'node';
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Get information about the current installation
  */
 export function getInstallationInfo(): {
@@ -395,6 +513,9 @@ export function getInstallationInfo(): {
   manifests: string[];
   wrapperDir: string;
   wrapperExists: boolean;
+  authTokenConfigured: boolean;
+  port: number | undefined;
+  runtime: string | undefined;
 } {
   const manifestFilename = `${MANIFEST_NAME}.json`;
   const dirs = getNativeMessagingDirs();
@@ -409,11 +530,17 @@ export function getInstallationInfo(): {
 
   const wrapperDir = getWrapperDir();
   const wrapperExists = fs.existsSync(wrapperDir);
+  const authTokenConfigured = wrapperExists && hasAuthToken(wrapperDir);
+  const port = wrapperExists ? getConfiguredPort(wrapperDir) : undefined;
+  const runtime = wrapperExists ? getConfiguredRuntime(wrapperDir) : undefined;
 
   return {
     installed: manifests.length > 0,
     manifests,
     wrapperDir,
     wrapperExists,
+    authTokenConfigured,
+    port,
+    runtime,
   };
 }
