@@ -26,7 +26,7 @@ git clone https://gitea.bishop-musical.ts.net/nonsleepr/claude-chrome-mcp.git
 cd claude-chrome-mcp
 bun install
 bun run build
-bun install -g .
+bun link
 
 # Register native host
 claude-chrome-mcp --install
