@@ -87,10 +87,26 @@ export function labelValue(label: string, valueText: string, indent = 0): string
  */
 export function highlightJSON(obj: unknown): string {
   const json = JSON.stringify(obj, null, 2);
-  return json
-    .replace(/"([^"]+)":/g, (_, key) => chalk.cyan(`"${key}"`) + ':')  // keys
-    .replace(/: "([^"]+)"/g, (_, val) => ': ' + chalk.yellow(`"${val}"`))  // string values
-    .replace(/([{}[\],])/g, (match) => chalk.dim(match));  // punctuation
+  
+  // Split into lines and colorize each line
+  return json.split('\n').map(line => {
+    // Color keys (property names followed by colon)
+    let coloredLine = line.replace(/"([^"]+)":/g, (match, key) => {
+      return chalk.cyan(`"${key}"`) + ':';
+    });
+    
+    // Color string values (after colon)
+    coloredLine = coloredLine.replace(/: "([^"]+)"/g, (match, val) => {
+      return ': ' + chalk.yellow(`"${val}"`);
+    });
+    
+    // Color structural characters
+    coloredLine = coloredLine.replace(/^(\s*)([{}[\],])/g, (match, spaces, char) => {
+      return spaces + chalk.dim(char);
+    });
+    
+    return coloredLine;
+  }).join('\n');
 }
 
 // ============================================================================
