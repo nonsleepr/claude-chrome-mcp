@@ -28,7 +28,7 @@
     "native-host",
     "native-messaging"
   ],
-  "author": "Anthropic",
+  "author": "Alex Bason (nonsleepr)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -50,6 +50,7 @@
     "typescript": "^5.7.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
   }
 }
