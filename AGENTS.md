@@ -158,3 +158,109 @@ sequenceDiagram
 ## Wire Protocol
 
 Chrome Native Messaging: `[4 bytes length (little-endian)] [N bytes JSON (UTF-8)]`
+
+## Build and Release Process
+
+### Repository Strategy
+
+This project uses GitHub as the primary public repository. Development workflows may vary based on contributor preferences.
+
+### Automated Release Workflow
+
+The release process is automated via a bun script that handles version bumping and tagging.
+
+#### Quick Release
+
+```bash
+# Interactive release (recommended)
+bun run release
+
+# Dry run to preview changes
+bun run release:dry
+```
+
+### Release Process Details
+
+The `bun run release` command performs the following steps:
+
+1. **Pre-release checks:**
+   - Verify git working directory is clean
+   - Confirm on main branch (or prompt to continue)
+   - Run tests: `bun test`
+   - Build project: `bun run build`
+
+2. **Version bump:**
+   - Prompt for bump type (patch/minor/major/custom)
+   - Update `package.json` with new version
+   - Stage changes
+
+3. **Commit and tag:**
+   - Commit: `Release vX.Y.Z`
+   - Create annotated git tag: `vX.Y.Z`
+   - Display push commands for manual execution
+
+4. **Push manually:**
+   ```bash
+   git push <remote> <branch>    # Push the commit
+   git push <remote> vX.Y.Z      # Push the tag
+   ```
+
+5. **Create release (optional):**
+   - GitHub: `gh release create vX.Y.Z --generate-notes`
+   - GitLab/Gitea: Create via web UI
+
+### Installation
+
+Users install directly from the repository:
+
+```bash
+# Install latest from repository
+bun install -g git+https://github.com/USER/REPO.git
+
+# Install specific version tag
+bun install -g git+https://github.com/USER/REPO.git#v0.1.0
+```
+
+**Note:** Installation requires `devDependencies` (TypeScript) to build. Users must have `bun` or `node` with TypeScript available.
+
+### Release Checklist
+
+When running `bun run release`, the script handles most of this automatically:
+
+- [ ] Clean git working directory
+- [ ] On main branch
+- [ ] Tests pass
+- [ ] Build succeeds
+- [ ] Version bumped in package.json
+- [ ] Changes committed to main
+- [ ] Git tag created
+- [ ] Push commit and tag to remote (manual)
+- [ ] Create release on hosting platform (optional)
+
+### Manual Release (Fallback)
+
+If the automated script fails, you can release manually:
+
+```bash
+# 1. Update version in package.json manually
+NEW_VERSION="0.1.1"  # Set your version
+
+# 2. Commit and tag
+git add package.json
+git commit -m "Release v$NEW_VERSION"
+git tag -a v$NEW_VERSION -m "Release v$NEW_VERSION"
+
+# 3. Push to remote
+git push <remote> <branch>
+git push <remote> v$NEW_VERSION
+
+# 4. Create release (optional)
+# GitHub: gh release create v$NEW_VERSION --generate-notes
+# GitLab/Gitea: Use web UI
+```
+
+### Troubleshooting Releases
+
+**Release creation on hosting platform:**
+- GitHub: Ensure `gh` CLI is installed and authenticated: `gh auth status`
+- GitLab/Gitea: Use the web UI to create releases from tags

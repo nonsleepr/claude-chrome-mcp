@@ -2,6 +2,8 @@
 
 MCP server for browser automation via the Claude Chrome Extension.
 
+This project integrates with [Anthropic's Claude Chrome Extension](https://claude.com/chrome) using the standard Chrome Native Messaging protocol to provide browser automation capabilities to MCP clients.
+
 ## Quick Start
 
 ### 1. Install Claude Browser Extension
@@ -139,3 +141,7 @@ claude-chrome-mcp --install --port 8080
 ## License
 
 MIT License - see [LICENSE](./LICENSE)
+
+## Attribution
+
+This MCP server provides integration with Anthropic's Claude Chrome Extension using standard Chrome Native Messaging protocols. The extension itself is a separate product developed by Anthropic, available at [claude.com/chrome](https://claude.com/chrome).

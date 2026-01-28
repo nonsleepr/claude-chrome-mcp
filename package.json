@@ -12,10 +12,12 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "prepare": "node scripts/build.cjs",
-    "test": "npm run test:unit",
-    "test:unit": "node test/unit/auth-cors.test.js && node test/unit/runtime-detection.test.js && node test/unit/instructions.test.js",
-    "test:auth": "node test/unit/auth-cors.test.js",
-    "test:runtime": "node test/unit/runtime-detection.test.js"
+    "test": "bun run test:unit",
+    "test:unit": "bun test/unit/auth-cors.test.js && bun test/unit/runtime-detection.test.js && bun test/unit/instructions.test.js",
+    "test:auth": "bun test/unit/auth-cors.test.js",
+    "test:runtime": "bun test/unit/runtime-detection.test.js",
+    "release": "bun scripts/release.mjs",
+    "release:dry": "bun scripts/release.mjs --dry-run"
   },
   "keywords": [
     "mcp",
