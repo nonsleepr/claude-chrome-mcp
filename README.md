@@ -59,15 +59,17 @@ Use the token from installation output or `--status` command.
 }
 ```
 
-**Claude Desktop** (`claude_desktop_config.json`):
+**Claude Desktop / Generic MCP Client** (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
     "chrome": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3456/mcp"],
-      "env": {
-        "MCP_REMOTE_HEADERS": "{\"Authorization\": \"Bearer YOUR_AUTO_GENERATED_TOKEN_HERE\"}"
+      "transport": {
+        "type": "http",
+        "url": "http://localhost:3456/mcp",
+        "headers": {
+          "Authorization": "Bearer YOUR_AUTO_GENERATED_TOKEN_HERE"
+        }
       }
     }
   }
@@ -99,22 +101,15 @@ claude-chrome-mcp --install --insecure
 }
 ```
 
-## Available Tools
+## What Your Agent Can Do
 
-- `navigate` - Navigate to URLs, back/forward
-- `computer` - Click, type, scroll, screenshot, keyboard
-- `form_input` - Fill inputs, select dropdowns
-- `find` - Search elements by text
-- `read_page` - Get DOM with element refs
-- `get_page_text` - Extract visible text
-- `tabs_context` - List tabs
-- `tabs_create` - Create new tab
-- `resize_window` - Resize window
-- `read_console_messages` - Read console
-- `read_network_requests` - Read network
-- `upload_image` - Upload via drag-drop
-- `gif_creator` - Record as GIF
-- `javascript_tool` - Execute JS
+- **Browse and research** - navigate websites, read content, extract text
+- **Fill out forms** - enter text, select dropdowns, click buttons
+- **Interact naturally** - click, scroll, type, keyboard shortcuts
+- **Search pages semantically** - find elements by description (requires Claude subscription)
+- **Debug web apps** - read console logs, inspect network requests, run JavaScript
+- **Capture and share** - screenshots, record workflows as animated GIFs
+- **Manage tabs** - open, switch, resize
 
 ## Troubleshooting
 
