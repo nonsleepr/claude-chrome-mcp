@@ -1,6 +1,6 @@
 {
   "name": "claude-chrome-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MCP server for browser automation via the Claude Chrome Extension (https://claude.com/chrome)",
   "type": "module",
   "main": "dist/index.js",
