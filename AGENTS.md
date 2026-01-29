@@ -11,6 +11,7 @@ MCP server that bridges the Claude Chrome Extension with MCP clients via Chrome 
 - Use Bun exclusively (no npm)
 - No emoji in output or documentation
 - No ASCII boxes in output
+- Commit dist/ to repo (required for `bun install -g` from GitHub)
 
 ## Essential Commands
 
