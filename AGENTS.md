@@ -11,7 +11,8 @@ MCP server that bridges the Claude Chrome Extension with MCP clients via Chrome 
 - Use Bun exclusively (no npm)
 - No emoji in output or documentation
 - No ASCII boxes in output
-- Commit dist/ to repo (required for `bun install -g` from GitHub)
+- PRs and development happen on `main` branch
+- `release` branch is the default branch (for installation)
 
 ## Essential Commands
 
@@ -166,6 +167,16 @@ Chrome Native Messaging: `[4 bytes length (little-endian)] [N bytes JSON (UTF-8)
 
 This project uses GitHub as the primary public repository. Development workflows may vary based on contributor preferences.
 
+### Branch Strategy
+
+- `main`: Development branch (no `dist/` committed)
+- `release`: Default branch for installation (contains `dist/`)
+
+Users install from the `release` branch:
+```bash
+bun install -g git+https://github.com/USER/REPO.git
+```
+
 ### Automated Release Workflow
 
 The release process is automated via a bun script that handles version bumping and tagging.
@@ -193,17 +204,21 @@ The `bun run release` command performs the following steps:
 2. **Version bump:**
    - Prompt for bump type (patch/minor/major/custom)
    - Update `package.json` with new version
-   - Stage changes
+   - Commit to main branch
 
-3. **Commit and tag:**
-   - Commit: `Release vX.Y.Z`
+3. **Merge to release:**
+   - Checkout `release` branch
+   - Merge `main` into `release`
+   - Force-add `dist/` (ignored by `.gitignore`)
+   - Commit dist changes
    - Create annotated git tag: `vX.Y.Z`
-   - Display push commands for manual execution
+   - Return to main branch
 
 4. **Push manually:**
    ```bash
-   git push <remote> <branch>    # Push the commit
-   git push <remote> vX.Y.Z      # Push the tag
+   git push origin main           # Push main branch
+   git push origin release        # Push release branch
+   git push origin vX.Y.Z         # Push the tag
    ```
 
 5. **Create release (optional):**
@@ -234,6 +249,8 @@ When running `bun run release`, the script handles most of this automatically:
 - [ ] Build succeeds
 - [ ] Version bumped in package.json
 - [ ] Changes committed to main
+- [ ] Main merged into release
+- [ ] dist/ committed to release
 - [ ] Git tag created
 - [ ] Push commit and tag to remote (manual)
 - [ ] Create release on hosting platform (optional)

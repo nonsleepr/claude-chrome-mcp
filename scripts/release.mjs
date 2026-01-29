@@ -53,10 +53,10 @@ function execOutput(cmd) {
  * Log with color
  */
 const log = {
-  info: (msg) => console.log(`${colors.blue}ℹ${colors.reset} ${msg}`),
-  success: (msg) => console.log(`${colors.green}✓${colors.reset} ${msg}`),
-  error: (msg) => console.log(`${colors.red}✗${colors.reset} ${msg}`),
-  warning: (msg) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
+  info: (msg) => console.log(`${colors.blue}i${colors.reset} ${msg}`),
+  success: (msg) => console.log(`${colors.green}+${colors.reset} ${msg}`),
+  error: (msg) => console.log(`${colors.red}x${colors.reset} ${msg}`),
+  warning: (msg) => console.log(`${colors.yellow}!${colors.reset} ${msg}`),
   step: (msg) => console.log(`\n${colors.cyan}${colors.bold}${msg}${colors.reset}`),
 };
 
@@ -142,6 +142,19 @@ function getCurrentBranch() {
  */
 function isOnMainBranch() {
   return getCurrentBranch() === 'main';
+}
+
+/**
+ * Check if release branch exists
+ * @returns {boolean}
+ */
+function releaseBranchExists() {
+  try {
+    execOutput('git rev-parse --verify release');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -279,8 +292,12 @@ async function release(dryRun = false) {
     
     log.step(`Would release version ${newVersion}`);
     log.info('[DRY RUN] Would bump version in package.json');
-    log.info('[DRY RUN] Would commit changes');
+    log.info('[DRY RUN] Would commit changes to main');
+    log.info('[DRY RUN] Would checkout/create release branch');
+    log.info('[DRY RUN] Would merge main into release');
+    log.info('[DRY RUN] Would force-add dist/ and commit');
     log.info('[DRY RUN] Would create git tag');
+    log.info('[DRY RUN] Would return to main branch');
     log.info('[DRY RUN] Would display push instructions');
     return;
   }
@@ -296,38 +313,67 @@ async function release(dryRun = false) {
   log.step(`Releasing version ${newVersion}`);
   log.success(`Version bumped to ${newVersion}`);
   
-  // Stage changes
-  log.info('Staging changes...');
+  // Stage and commit version bump on main
+  log.info('Committing version bump to main...');
   exec('git add package.json', true);
-  
-  // Commit
-  log.info('Committing changes...');
   exec(`git commit -m "Release v${newVersion}"`, true);
-  log.success('Changes committed');
+  log.success('Version bump committed to main');
   
-  // Create tag
+  // Checkout or create release branch
+  log.step('Preparing release branch');
+  if (releaseBranchExists()) {
+    log.info('Checking out existing release branch...');
+    exec('git checkout release', true);
+  } else {
+    log.info('Creating new release branch...');
+    exec('git checkout -b release', true);
+  }
+  log.success('On release branch');
+  
+  // Merge main into release
+  log.info('Merging main into release...');
+  exec('git merge main -m "Merge main for release v' + newVersion + '"', true);
+  log.success('Main merged into release');
+  
+  // Build dist (should already be built, but ensure fresh)
+  log.info('Building dist...');
+  exec('bun run build', true);
+  log.success('Build complete');
+  
+  // Force-add dist (it's in .gitignore)
+  log.info('Adding dist/ to release branch...');
+  exec('git add -f dist/', true);
+  
+  // Check if there are changes to commit
+  const distChanges = execOutput('git status --porcelain dist/');
+  if (distChanges) {
+    exec(`git commit -m "Add dist/ for v${newVersion}"`, true);
+    log.success('dist/ committed to release branch');
+  } else {
+    log.info('No changes to dist/');
+  }
+  
+  // Create tag on release branch
   log.info('Creating git tag...');
   exec(`git tag -a v${newVersion} -m "Release v${newVersion}"`, true);
   log.success(`Tag v${newVersion} created`);
+  
+  // Return to main branch
+  log.info('Returning to main branch...');
+  exec('git checkout main', true);
+  log.success('Back on main branch');
   
   console.log(`\n${colors.green}${colors.bold}Release v${newVersion} complete!${colors.reset}\n`);
   
   // Show next steps
   log.step('Next Steps:');
-  console.log(`\n${colors.cyan}1. Push the release:${colors.reset}`);
-  console.log(`   ${colors.bold}git push <remote> <branch>${colors.reset}       # Push the commit`);
-  console.log(`   ${colors.bold}git push <remote> v${newVersion}${colors.reset}    # Push the tag`);
+  console.log(`\n${colors.cyan}Push the release:${colors.reset}`);
+  console.log(`   ${colors.bold}git push origin main${colors.reset}           # Push main branch`);
+  console.log(`   ${colors.bold}git push origin release${colors.reset}        # Push release branch`);
+  console.log(`   ${colors.bold}git push origin v${newVersion}${colors.reset}        # Push the tag`);
   
-  console.log(`\n${colors.cyan}2. (Optional) Create a release on your hosting platform${colors.reset}`);
-  console.log(`   For GitHub: ${colors.bold}gh release create v${newVersion} --generate-notes${colors.reset}`);
-  console.log(`   For GitLab: Create release via web UI`);
-  console.log(`   For Gitea: Create release via web UI`);
-  
-  console.log(`\n${colors.cyan}Examples:${colors.reset}`);
-  console.log('   ' + colors.dim + '# Push to origin (e.g., GitHub)' + colors.reset);
-  console.log('   ' + colors.dim + 'git push origin main && git push origin v' + newVersion + colors.reset);
-  console.log('   ' + colors.dim + '# Push to different remote (e.g., GitLab, Gitea)' + colors.reset);
-  console.log('   ' + colors.dim + 'git push upstream main && git push upstream v' + newVersion + colors.reset);
+  console.log(`\n${colors.cyan}(Optional) Create a release on GitHub:${colors.reset}`);
+  console.log(`   ${colors.bold}gh release create v${newVersion} --generate-notes${colors.reset}`);
   console.log('');
 }
 
@@ -342,6 +388,16 @@ async function main() {
     await release(dryRun);
   } catch (error) {
     log.error(`Release failed: ${error.message}`);
+    // Try to return to main branch on error
+    try {
+      const currentBranch = getCurrentBranch();
+      if (currentBranch !== 'main') {
+        log.info('Returning to main branch...');
+        exec('git checkout main', true);
+      }
+    } catch {
+      // Ignore errors when trying to recover
+    }
     process.exit(1);
   }
 }
