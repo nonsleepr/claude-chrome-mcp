@@ -10,8 +10,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/cli.js",
-    "prepare": "node scripts/build.cjs",
+    "start": "bun dist/cli.js",
+    "prepare": "bun scripts/build.cjs",
     "test": "bun run test:unit",
     "test:unit": "bun test/unit/auth-cors.test.js && bun test/unit/runtime-detection.test.js && bun test/unit/instructions.test.js",
     "test:auth": "bun test/unit/auth-cors.test.js",

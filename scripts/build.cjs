@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 // Build script that can run in various contexts
 const { execSync } = require('child_process');
@@ -43,7 +43,7 @@ if (!tscPath) {
 // Run the build
 try {
   console.log('Building TypeScript...');
-  execSync(`node "${tscPath}"`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+  execSync(`"${tscPath}"`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
   console.log('Build complete!');
 } catch (error) {
   console.error('Build failed:', error.message);
